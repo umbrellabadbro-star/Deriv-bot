@@ -714,38 +714,29 @@
     </statement>
 
     <statement name="PURCHASE_CONDITIONS">
-      <block type="controls_if" id="purchase_condition_check">
-        <value name="IF0">
-          <block type="variables_get" id="check_can_trade_purchase">
-            <field name="VAR" id="var_canTrade">canTrade</field>
+      <block type="tradeOptions" id="set_trade_opts_enh">
+        <field name="DURATIONTYPE_LIST">t</field>
+        <field name="CURRENCY_LIST">USD</field>
+        <value name="DURATION">
+          <shadow type="math_number" id="dur_enh">
+            <field name="NUM">5</field>
+          </shadow>
+        </value>
+        <value name="AMOUNT">
+          <block type="variables_get" id="get_stake_trade_enh">
+            <field name="VAR" id="var_currentStake">currentStake</field>
           </block>
         </value>
-        <statement name="DO0">
-          <block type="tradeOptions" id="set_trade_opts_enh">
-            <field name="DURATIONTYPE_LIST">t</field>
-            <field name="CURRENCY_LIST">USD</field>
-            <value name="DURATION">
-              <shadow type="math_number" id="dur_enh">
-                <field name="NUM">5</field>
-              </shadow>
-            </value>
-            <value name="AMOUNT">
-              <block type="variables_get" id="get_stake_trade_enh">
-                <field name="VAR" id="var_currentStake">currentStake</field>
-              </block>
-            </value>
-            <value name="PREDICTION">
-              <block type="variables_get" id="get_pred_trade_enh">
-                <field name="VAR" id="var_prediction">prediction</field>
-              </block>
-            </value>
-            <next>
-              <block type="purchase" id="make_purchase_enh">
-                <field name="PURCHASE_LIST">DIGITMATCH</field>
-              </block>
-            </next>
+        <value name="PREDICTION">
+          <block type="variables_get" id="get_pred_trade_enh">
+            <field name="VAR" id="var_prediction">prediction</field>
           </block>
-        </statement>
+        </value>
+        <next>
+          <block type="purchase" id="make_purchase_enh">
+            <field name="PURCHASE_LIST">DIGITMATCH</field>
+          </block>
+        </next>
       </block>
     </statement>
 
