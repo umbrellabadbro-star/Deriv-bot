@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<derivBot>
+    <metadata>
+        <name>Deriv Bot Match/Differ Predictor</name>
+        <version>1.0.0</version>
+        <description>AI-powered bot for predicting Match/Differ outcomes with digits 0-9</description>
+        <author>Deriv Bot Development</author>
+        <created>2026-05-22</created>
+        <botType>match_differ</botType>
+    </metadata>
+
+    <configuration>
+        <settings>
+            <maxHistory>100</maxHistory>
+            <minConfidence>0.55</minConfidence>
+            <defaultBetAmount>100</defaultBetAmount>
+            <digitRange>
+                <min>0</min>
+                <max>9</max>
+            </digitRange>
+            <predictionTypes>
+                <type>match</type>
+                <type>differ</type>
+            </predictionTypes>
+        </settings>
+
+        <tradingRules>
+            <rule>
+                <name>Minimum Confidence</name>
+                <description>Only place trades when confidence >= minimum threshold</description>
+                <threshold>0.55</threshold>
+            </rule>
+            <rule>
+                <name>Pattern Analysis</name>
+                <description>Analyze historical patterns for match/differ occurrences</description>
+                <enabled>true</enabled>
+            </rule>
+            <rule>
+                <name>Frequency Adjustment</name>
+                <description>Adjust confidence based on digit frequency in history</description>
+                <weight>0.3</weight>
+            </rule>
+        </tradingRules>
+    </configuration>
+
+    <engine>
+        <analysis>
+            <patternAnalysis>
+                <description>Analyzes historical digit patterns</description>
+                <metrics>
+                    <metric name="total_comparisons">Total digit pair comparisons</metric>
+                    <metric name="matches">Number of matching consecutive digits</metric>
+                    <metric name="differs">Number of differing consecutive digits</metric>
+                    <metric name="match_ratio">Percentage of matches in history</metric>
+                    <metric name="differ_ratio">Percentage of differs in history</metric>
+                </metrics>
+            </patternAnalysis>
+
+            <frequencyAnalysis>
+                <description>Tracks frequency of each digit 0-9</description>
+                <digits>
+                    <digit value="0"/>
+                    <digit value="1"/>
+                    <digit value="2"/>
+                    <digit value="3"/>
+                    <digit value="4"/>
+                    <digit value="5"/>
+                    <digit value="6"/>
+                    <digit value="7"/>
+                    <digit value="8"/>
+                    <digit value="9"/>
+                </digits>
+            </frequencyAnalysis>
+
+            <predictionEngine>
+                <description>Generates match/differ predictions with confidence scores</description>
+                <algorithm>
+                    <name>Confidence-Based Prediction</name>
+                    <steps>
+                        <step>1. Calculate match ratio from historical patterns</step>
+                        <step>2. Adjust confidence based on current digit frequency</step>
+                        <step>3. Normalize match and differ confidence values</step>
+                        <step>4. Select prediction with higher confidence</step>
+                        <step>5. Generate recommendation if confidence exceeds threshold</step>
+                    </steps>
+                </algorithm>
+            </predictionEngine>
+        </analysis>
+
+        <prediction>
+            <output>
+                <field name="prediction">match or differ</field>
+                <field name="match_confidence">Confidence for match outcome (0.0-1.0)</field>
+                <field name="differ_confidence">Confidence for differ outcome (0.0-1.0)</field>
+                <field name="recommended_bet">Recommended bet type or null</field>
+                <field name="confidence_level">Overall confidence level (0.0-1.0)</field>
+                <field name="reason">Explanation for prediction</field>
+            </output>
+        </prediction>
+    </engine>
+
+    <trading>
+        <betTypes>
+            <bet>
+                <type>match</type>
+                <description>Next digit matches current digit</description>
+                <payout>2x on win</payout>
+            </bet>
+            <bet>
+                <type>differ</type>
+                <description>Next digit differs from current digit</description>
+                <payout>2x on win</payout>
+            </bet>
+        </betTypes>
+
+        <tradeManagement>
+            <trade>
+                <timestamp>Trade execution time</timestamp>
+                <betType>match or differ</betType>
+                <amount>Bet amount</amount>
+                <outcome>Actual result</outcome>
+                <won>Win/Loss boolean</won>
+                <payout>Profit or loss amount</payout>
+            </trade>
+        </tradeManagement>
+
+        <statistics>
+            <stat>
+                <name>total_predictions</name>
+                <description>Total number of predictions made</description>
+                <type>integer</type>
+            </stat>
+            <stat>
+                <name>correct_predictions</name>
+                <description>Number of correct predictions</description>
+                <type>integer</type>
+            </stat>
+            <stat>
+                <name>match_count</name>
+                <description>Total match predictions</description>
+                <type>integer</type>
+            </stat>
+            <stat>
+                <name>differ_count</name>
+                <description>Total differ predictions</description>
+                <type>integer</type>
+            </stat>
+            <stat>
+                <name>win_rate</name>
+                <description>Percentage of winning predictions</description>
+                <type>float</type>
+                <format>percentage</format>
+            </stat>
+            <stat>
+                <name>profit_loss</name>
+                <description>Total profit or loss</description>
+                <type>float</type>
+                <format>currency</format>
+            </stat>
+            <stat>
+                <name>total_trades</name>
+                <description>Total number of trades executed</description>
+                <type>integer</type>
+            </stat>
+            <stat>
+                <name>history_size</name>
+                <description>Current size of digit history</description>
+                <type>integer</type>
+            </stat>
+        </statistics>
+    </trading>
+
+    <methods>
+        <method>
+            <name>add_digit</name>
+            <description>Add a new digit to the history</description>
+            <parameters>
+                <parameter name="digit" type="integer" required="true">Digit value (0-9)</parameter>
+            </parameters>
+            <returns>void</returns>
+            <throws>ValueError if digit is not between 0-9</throws>
+        </method>
+
+        <method>
+            <name>analyze_patterns</name>
+            <description>Analyze historical patterns for match/differ occurrences</description>
+            <parameters/>
+            <returns>
+                <return name="total_comparisons">Total number of digit comparisons</return>
+                <return name="matches">Number of matches</return>
+                <return name="differs">Number of differs</return>
+                <return name="match_ratio">Match percentage</return>
+                <return name="differ_ratio">Differ percentage</return>
+            </returns>
+        </method>
+
+        <method>
+            <name>get_digit_frequency</name>
+            <description>Calculate digit frequency in history</description>
+            <parameters/>
+            <returns>Dictionary with digit frequencies (0-10 for digits 0-9)</returns>
+        </method>
+
+        <method>
+            <name>predict_next</name>
+            <description>Predict whether next digit will match or differ from current</description>
+            <parameters>
+                <parameter name="current_digit" type="integer" required="true">Current digit (0-9)</parameter>
+            </parameters>
+            <returns>
+                <return name="prediction">match or differ</return>
+                <return name="match_confidence">Confidence for match</return>
+                <return name="differ_confidence">Confidence for differ</return>
+                <return name="recommended_bet">Recommended bet</return>
+                <return name="confidence_level">Overall confidence</return>
+                <return name="reason">Prediction reason</return>
+            </returns>
+        </method>
+
+        <method>
+            <name>place_trade</name>
+            <description>Place a trade with prediction</description>
+            <parameters>
+                <parameter name="bet_type" type="string" required="true">match or differ</parameter>
+                <parameter name="amount" type="float" required="true">Bet amount</parameter>
+                <parameter name="outcome" type="string" required="false">Actual outcome for backtesting</parameter>
+            </parameters>
+            <returns>
+                <return name="timestamp">Trade execution time</return>
+                <return name="bet_type">Type of bet</return>
+                <return name="amount">Bet amount</return>
+                <return name="outcome">Actual outcome</return>
+                <return name="won">Whether trade was won</return>
+                <return name="payout">Profit or loss</return>
+            </returns>
+        </method>
+
+        <method>
+            <name>get_statistics</name>
+            <description>Get bot statistics and performance metrics</description>
+            <parameters/>
+            <returns>Dictionary containing all statistics</returns>
+        </method>
+
+        <method>
+            <name>get_current_state</name>
+            <description>Get current state of the bot</description>
+            <parameters/>
+            <returns>
+                <return name="history">Current digit history</return>
+                <return name="history_size">Size of history</return>
+                <return name="patterns">Pattern analysis</return>
+                <return name="digit_frequency">Digit frequencies</return>
+                <return name="statistics">Performance statistics</return>
+                <return name="recent_predictions">Last 5 predictions</return>
+            </returns>
+        </method>
+    </methods>
+
+    <dataFlow>
+        <flow>
+            <stage>1</stage>
+            <name>Data Collection</name>
+            <description>Add historical digits to bot memory</description>
+            <input>Digit stream (0-9)</input>
+            <action>add_digit()</action>
+            <output>Updated history buffer</output>
+        </flow>
+
+        <flow>
+            <stage>2</stage>
+            <name>Pattern Analysis</name>
+            <description>Analyze match/differ patterns from history</description>
+            <input>Digit history</input>
+            <action>analyze_patterns()</action>
+            <output>Match/differ ratios and statistics</output>
+        </flow>
+
+        <flow>
+            <stage>3</stage>
+            <name>Frequency Calculation</name>
+            <description>Calculate frequency of each digit 0-9</description>
+            <input>Digit history</input>
+            <action>get_digit_frequency()</action>
+            <output>Digit frequency map</output>
+        </flow>
+
+        <flow>
+            <stage>4</stage>
+            <name>Prediction Generation</name>
+            <description>Generate prediction with confidence scores</description>
+            <input>Current digit, patterns, frequencies</input>
+            <action>predict_next()</action>
+            <output>Prediction with confidence levels</output>
+        </flow>
+
+        <flow>
+            <stage>5</stage>
+            <name>Trade Execution</name>
+            <description>Place trade based on recommendation</description>
+            <input>Prediction, bet type, amount</input>
+            <action>place_trade()</action>
+            <output>Trade record with execution details</output>
+        </flow>
+
+        <flow>
+            <stage>6</stage>
+            <name>Performance Tracking</name>
+            <description>Update statistics based on trade outcome</description>
+            <input>Trade result</input>
+            <action>Update statistics</action>
+            <output>Updated performance metrics</output>
+        </flow>
+    </dataFlow>
+
+    <examples>
+        <example>
+            <name>Basic Usage</name>
+            <description>Initialize bot and add historical data</description>
+            <code>
+                <![CDATA[
+bot = DerivBotMatchDiffer(max_history=50, min_confidence=0.55)
+digit_stream = [3, 3, 5, 7, 7, 7, 2, 2, 4, 6, 8, 8, 1, 3, 3, 5, 5, 9, 9, 0]
+for digit in digit_stream:
+    bot.add_digit(digit)
+                ]]>
+            </code>
+        </example>
+
+        <example>
+            <name>Make Prediction</name>
+            <description>Predict next digit outcome</description>
+            <code>
+                <![CDATA[
+prediction = bot.predict_next(current_digit=5)
+print(f"Prediction: {prediction['prediction']}")
+print(f"Confidence: {prediction['match_confidence']:.2%}")
+                ]]>
+            </code>
+        </example>
+
+        <example>
+            <name>Place Trade</name>
+            <description>Execute a trade with outcome</description>
+            <code>
+                <![CDATA[
+trade = bot.place_trade(
+    bet_type='match',
+    amount=100,
+    outcome='match'
+)
+print(f"Result: {'WON' if trade['won'] else 'LOST'}")
+print(f"Payout: ${trade['payout']}")
+                ]]>
+            </code>
+        </example>
+
+        <example>
+            <name>Get Statistics</name>
+            <description>View bot performance metrics</description>
+            <code>
+                <![CDATA[
+stats = bot.get_statistics()
+print(f"Win Rate: {stats['win_rate']}")
+print(f"Profit/Loss: ${stats['profit_loss']}")
+print(f"Total Trades: {stats['total_trades']}")
+                ]]>
+            </code>
+        </example>
+    </examples>
+
+    <performance>
+        <benchmarks>
+            <benchmark>
+                <metric>Analysis Speed</metric>
+                <value>O(n) where n is history size</value>
+            </benchmark>
+            <benchmark>
+                <metric>Memory Usage</metric>
+                <value>O(max_history) limited to 100 digits</value>
+            </benchmark>
+            <benchmark>
+                <metric>Prediction Time</metric>
+                <value>&lt;1ms per prediction</value>
+            </benchmark>
+        </benchmarks>
+    </performance>
+
+    <supportedFormats>
+        <format>Python 3.6+</format>
+        <format>JSON export</format>
+        <format>CSV logs</format>
+        <format>XML configuration</format>
+    </supportedFormats>
+
+    <notes>
+        <note>Minimum of 2 historical digits required for pattern analysis</note>
+        <note>Confidence threshold (0.55 default) determines trade recommendations</note>
+        <note>Frequency adjustment weight is 0.3 (30% of total confidence)</note>
+        <note>All confidence values are normalized between 0.0 and 1.0</note>
+        <note>Win probability 2:1 on successful trades</note>
+    </notes>
+
+</derivBot>
