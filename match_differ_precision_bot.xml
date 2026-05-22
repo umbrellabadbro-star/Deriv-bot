@@ -22,21 +22,6 @@
     <configuration>
         <appSettings>
             <setting>
-                <key>app_id</key>
-                <value>YOUR_APP_ID</value>
-                <description>Deriv App ID for live trading authentication</description>
-                <required>true</required>
-                <type>string</type>
-            </setting>
-            <setting>
-                <key>api_token</key>
-                <value>YOUR_API_TOKEN</value>
-                <description>Deriv Live API token for real trading</description>
-                <required>true</required>
-                <type>string</type>
-                <sensitive>true</sensitive>
-            </setting>
-            <setting>
                 <key>api_endpoint</key>
                 <value>wss://ws.deriv.com/websockets/v3</value>
                 <description>Deriv WebSocket API endpoint (LIVE)</description>
@@ -52,6 +37,16 @@
                 <allowedValues>
                     <value>real</value>
                     <value>demo</value>
+                </allowedValues>
+            </setting>
+            <setting>
+                <key>environment</key>
+                <value>production</value>
+                <description>Trading environment</description>
+                <type>string</type>
+                <allowedValues>
+                    <value>production</value>
+                    <value>staging</value>
                 </allowedValues>
             </setting>
         </appSettings>
@@ -289,6 +284,12 @@
             <scope>payments</scope>
         </scopes>
         <tokenExpiry>3600</tokenExpiry>
+        <credentialStorage>environment_variables</credentialStorage>
+        <credentialMethods>
+            <method>Environment variables (DERIV_TOKEN, DERIV_APP_ID)</method>
+            <method>Configuration file (config.json)</method>
+            <method>Runtime input from user</method>
+        </credentialMethods>
     </authentication>
 
     <apiConnections>
@@ -506,7 +507,7 @@
 
     <liveTrading>
         <enabled>true</enabled>
-        <autoStart>true</autoStart>
+        <autoStart>false</autoStart>
         <description>Live trading configuration for real money</description>
         <requirements>
             <requirement>Valid Deriv account with real funds</requirement>
@@ -539,9 +540,9 @@
         <error>
             <code>AUTH_001</code>
             <name>AuthenticationError</name>
-            <message>API token invalid or expired</message>
+            <message>API credentials missing or invalid</message>
             <severity>critical</severity>
-            <action>Stop bot and prompt for new token</action>
+            <action>Prompt user for credentials via environment variables or config file</action>
         </error>
         <error>
             <code>INSUFFICIENT_FUNDS</code>
