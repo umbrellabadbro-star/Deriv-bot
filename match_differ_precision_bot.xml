@@ -1,0 +1,569 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<derivPrecisionBot xmlns="http://deriv.com/bot/schema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://deriv.com/bot/schema deriv-bot.xsd">
+    
+    <metadata>
+        <name>Deriv Match/Differ Precision Bot - High Win Rate</name>
+        <version>2.0.0</version>
+        <apiVersion>2.0</apiVersion>
+        <description>Advanced AI-powered precision bot for Match/Differ prediction with 0-9 digit recognition. Optimized for high win rate through pattern recognition and adaptive algorithms.</description>
+        <author>Deriv Precision Development</author>
+        <created>2026-05-22</created>
+        <updated>2026-05-22</updated>
+        <botType>match_differ_precision</botType>
+        <algorithmVersion>2.1.0</algorithmVersion>
+        <winRateTarget>65</winRateTarget>
+        <supportedPlatforms>
+            <platform>DerivApp</platform>
+            <platform>DerivAPI</platform>
+            <platform>BinaryBot</platform>
+        </supportedPlatforms>
+    </metadata>
+
+    <configuration>
+        <appSettings>
+            <setting>
+                <key>app_id</key>
+                <value>YOUR_APP_ID</value>
+                <description>Deriv App ID for live trading authentication</description>
+                <required>true</required>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>api_token</key>
+                <value>YOUR_API_TOKEN</value>
+                <description>Deriv Live API token for real trading</description>
+                <required>true</required>
+                <type>string</type>
+                <sensitive>true</sensitive>
+            </setting>
+            <setting>
+                <key>api_endpoint</key>
+                <value>wss://ws.deriv.com/websockets/v3</value>
+                <description>Deriv WebSocket API endpoint (LIVE)</description>
+                <required>true</required>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>account_type</key>
+                <value>real</value>
+                <description>Account type for live trading</description>
+                <required>true</required>
+                <type>string</type>
+                <allowedValues>
+                    <value>real</value>
+                    <value>demo</value>
+                </allowedValues>
+            </setting>
+        </appSettings>
+
+        <precisionSettings>
+            <setting>
+                <key>predictionMode</key>
+                <value>precision</value>
+                <description>Precision prediction mode (0-9 digit selection)</description>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>digitRange</key>
+                <value>0-9</value>
+                <description>Range of digits for prediction</description>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>randomSelectionEnabled</key>
+                <value>true</value>
+                <description>Enable random digit selection with AI weighting</description>
+                <type>boolean</type>
+            </setting>
+            <setting>
+                <key>maxHistorySize</key>
+                <value>200</value>
+                <description>Maximum historical data points to analyze</description>
+                <type>integer</type>
+                <min>50</min>
+                <max>1000</max>
+            </setting>
+            <setting>
+                <key>minConfidenceThreshold</key>
+                <value>0.62</value>
+                <description>Minimum confidence level to place bet (62% for high win rate)</description>
+                <type>float</type>
+                <min>0.55</min>
+                <max>0.95</max>
+            </setting>
+            <setting>
+                <key>predictionAccuracy</key>
+                <value>0.68</value>
+                <description>Target accuracy for precision mode</description>
+                <type>float</type>
+            </setting>
+        </precisionSettings>
+
+        <botSettings>
+            <setting>
+                <key>tradingMode</key>
+                <value>aggressive</value>
+                <description>Trading mode: conservative, balanced, aggressive</description>
+                <type>string</type>
+                <allowedValues>
+                    <value>conservative</value>
+                    <value>balanced</value>
+                    <value>aggressive</value>
+                </allowedValues>
+            </setting>
+            <setting>
+                <key>defaultBetAmount</key>
+                <value>100</value>
+                <description>Default bet amount per trade</description>
+                <type>float</type>
+                <min>1</min>
+                <max>10000</max>
+            </setting>
+            <setting>
+                <key>maxDailyLoss</key>
+                <value>500</value>
+                <description>Stop trading when daily loss reaches limit</description>
+                <type>float</type>
+            </setting>
+            <setting>
+                <key>maxDailyProfit</key>
+                <value>5000</value>
+                <description>Take daily profits at this limit</description>
+                <type>float</type>
+            </setting>
+            <setting>
+                <key>maxTradesPerDay</key>
+                <value>100</value>
+                <description>Maximum trades per day</description>
+                <type>integer</type>
+            </setting>
+            <setting>
+                <key>enableLogging</key>
+                <value>true</value>
+                <description>Enable detailed logging for debugging</description>
+                <type>boolean</type>
+            </setting>
+            <setting>
+                <key>logLevel</key>
+                <value>INFO</value>
+                <description>Logging level</description>
+                <type>string</type>
+                <allowedValues>
+                    <value>DEBUG</value>
+                    <value>INFO</value>
+                    <value>WARNING</value>
+                    <value>ERROR</value>
+                </allowedValues>
+            </setting>
+            <setting>
+                <key>logFile</key>
+                <value>deriv_match_differ_precision.log</value>
+                <description>Log file path</description>
+                <type>string</type>
+            </setting>
+        </botSettings>
+
+        <marketSettings>
+            <setting>
+                <key>market</key>
+                <value>synthetic</value>
+                <description>Market type for trading</description>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>symbol</key>
+                <value>1HZ100V</value>
+                <description>Trading symbol (Volatility 100 Index)</description>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>contractType</key>
+                <value>MATCHDIFF</value>
+                <description>Contract type for match/differ</description>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>duration</key>
+                <value>5</value>
+                <description>Trade duration</description>
+                <type>integer</type>
+            </setting>
+            <setting>
+                <key>durationUnit</key>
+                <value>ticks</value>
+                <description>Duration unit</description>
+                <type>string</type>
+                <allowedValues>
+                    <value>ticks</value>
+                    <value>seconds</value>
+                </allowedValues>
+            </setting>
+        </marketSettings>
+
+        <tradingRules>
+            <rule>
+                <id>rule_precision_01</id>
+                <name>Precision Confidence Gate</name>
+                <description>Only place trades when confidence >= 62%</description>
+                <threshold>0.62</threshold>
+                <enabled>true</enabled>
+                <weight>1.0</weight>
+            </rule>
+            <rule>
+                <id>rule_precision_02</id>
+                <name>Pattern Recognition Engine</name>
+                <description>Analyze 200-tick history for match/differ patterns</description>
+                <enabled>true</enabled>
+                <minDataPoints>50</minDataPoints>
+                <weight>0.8</weight>
+            </rule>
+            <rule>
+                <id>rule_precision_03</id>
+                <name>Digit Frequency Weighting</name>
+                <description>Weight predictions based on digit frequency distribution</description>
+                <weight>0.25</weight>
+                <enabled>true</enabled>
+                <adjustmentFactor>0.35</adjustmentFactor>
+            </rule>
+            <rule>
+                <id>rule_precision_04</id>
+                <name>Streak Detection</name>
+                <description>Detect and capitalize on match/differ streaks</description>
+                <enabled>true</enabled>
+                <minStreakLength>3</minStreakLength>
+                <weight>0.4</weight>
+            </rule>
+            <rule>
+                <id>rule_precision_05</id>
+                <name>Volatility Adjustment</name>
+                <description>Adjust confidence based on market volatility</description>
+                <enabled>true</enabled>
+                <weight>0.2</weight>
+            </rule>
+            <rule>
+                <id>rule_precision_06</id>
+                <name>Stop Loss Gate</name>
+                <description>Exit at 15% loss per trade</description>
+                <stopLossPercent>15</stopLossPercent>
+                <enabled>true</enabled>
+            </rule>
+            <rule>
+                <id>rule_precision_07</id>
+                <name>Take Profit Gate</name>
+                <description>Lock in profits at 25% gain</description>
+                <takeProfitPercent>25</takeProfitPercent>
+                <enabled>true</enabled>
+            </rule>
+            <rule>
+                <id>rule_precision_08</id>
+                <name>Risk Management</name>
+                <description>Limit risk to 2% of account per trade</description>
+                <maxRiskPercent>2</maxRiskPercent>
+                <enabled>true</enabled>
+            </rule>
+        </tradingRules>
+
+        <algorithmParameters>
+            <parameter name="matchRatioWeight">0.4</parameter>
+            <parameter name="differRatioWeight">0.4</parameter>
+            <parameter name="frequencyWeight">0.25</parameter>
+            <parameter name="streakWeight">0.35</parameter>
+            <parameter name="volatilityWeight">0.15</parameter>
+            <parameter name="smoothingFactor">0.12</parameter>
+            <parameter name="decayFactor">0.95</parameter>
+            <parameter name="adaptationRate">0.08</parameter>
+        </algorithmParameters>
+    </configuration>
+
+    <authentication>
+        <method>OAuth2</method>
+        <provider>Deriv</provider>
+        <endpoints>
+            <tokenEndpoint>https://oauth.deriv.com/oauth2/token</tokenEndpoint>
+            <authEndpoint>https://oauth.deriv.com/oauth2/authorize</authEndpoint>
+            <revokeEndpoint>https://oauth.deriv.com/oauth2/revoke</revokeEndpoint>
+        </endpoints>
+        <scopes>
+            <scope>read</scope>
+            <scope>trade</scope>
+            <scope>payments</scope>
+        </scopes>
+        <tokenExpiry>3600</tokenExpiry>
+    </authentication>
+
+    <apiConnections>
+        <connection>
+            <id>deriv_live_ws</id>
+            <type>WebSocket</type>
+            <endpoint>wss://ws.deriv.com/websockets/v3</endpoint>
+            <protocol>JSON-RPC 2.0</protocol>
+            <reconnect>true</reconnect>
+            <reconnectInterval>3000</reconnectInterval>
+            <maxRetries>15</maxRetries>
+            <timeout>30000</timeout>
+            <purpose>Live trading and real-time tick data</purpose>
+        </connection>
+    </apiConnections>
+
+    <engine>
+        <precisionAnalyzer>
+            <id>precision_analyzer</id>
+            <description>Advanced precision analysis for 0-9 digit prediction</description>
+            <enabled>true</enabled>
+            
+            <patternRecognition>
+                <id>pattern_recognition</id>
+                <description>Recognizes match/differ patterns in digit sequences</description>
+                <metrics>
+                    <metric name="consecutiveMatches">Count of consecutive matching digits</metric>
+                    <metric name="consecutiveDiffers">Count of consecutive differing digits</metric>
+                    <metric name="matchRatio">Percentage of matches in history</metric>
+                    <metric name="differRatio">Percentage of differs in history</metric>
+                    <metric name="cycleLength">Detected cycle length in patterns</metric>
+                    <metric name="sequencePattern">Identified sequence pattern type</metric>
+                </metrics>
+                <algorithm>Advanced Pattern Matching with Cycle Detection</algorithm>
+            </patternRecognition>
+
+            <frequencyAnalysis>
+                <id>frequency_analysis</id>
+                <description>Analyzes frequency distribution of digits 0-9</description>
+                <digitTracking>
+                    <digit value="0"/>
+                    <digit value="1"/>
+                    <digit value="2"/>
+                    <digit value="3"/>
+                    <digit value="4"/>
+                    <digit value="5"/>
+                    <digit value="6"/>
+                    <digit value="7"/>
+                    <digit value="8"/>
+                    <digit value="9"/>
+                </digitTracking>
+                <updateInterval>100</updateInterval>
+                <weights>
+                    <normalDistribution>true</normalDistribution>
+                    <decayOldData>true</decayOldData>
+                    <focusRecent>true</focusRecent>
+                </weights>
+            </frequencyAnalysis>
+
+            <streakDetection>
+                <id>streak_detector</id>
+                <description>Detects and capitalizes on match/differ streaks</description>
+                <minStreakLength>2</minStreakLength>
+                <maxStreakLength>20</maxStreakLength>
+                <confidence>0.70</confidence>
+            </streakDetection>
+
+            <volatilityAnalyzer>
+                <id>volatility_analyzer</id>
+                <description>Analyzes market volatility to adjust predictions</description>
+                <metrics>
+                    <metric>volatilityIndex</metric>
+                    <metric>changeFrequency</metric>
+                    <metric>standardDeviation</metric>
+                </metrics>
+            </volatilityAnalyzer>
+
+            <predictionEngine>
+                <id>precision_prediction_engine</id>
+                <description>Generates precision predictions with multi-factor analysis</description>
+                <algorithm>
+                    <name>Weighted Multi-Factor Precision Prediction</name>
+                    <version>2.1</version>
+                    <steps>
+                        <step order="1">Extract last digit from tick stream</step>
+                        <step order="2">Analyze 200-tick historical pattern</step>
+                        <step order="3">Calculate match ratio from patterns</step>
+                        <step order="4">Calculate digit frequency distribution</step>
+                        <step order="5">Detect active streaks (match or differ)</step>
+                        <step order="6">Analyze market volatility level</step>
+                        <step order="7">Apply weighted algorithm to combine factors</step>
+                        <step order="8">Normalize confidence to 0-1 range</step>
+                        <step order="9">Validate against confidence threshold (62%)</step>
+                        <step order="10">Generate final recommendation with reasoning</step>
+                    </steps>
+                    <parameters>
+                        <parameter name="matchRatioWeight">0.40</parameter>
+                        <parameter name="frequencyWeight">0.25</parameter>
+                        <parameter name="streakWeight">0.35</parameter>
+                        <parameter name="volatilityAdjustment">0.15</parameter>
+                        <parameter name="confidenceThreshold">0.62</parameter>
+                        <parameter name="decayFactor">0.95</parameter>
+                    </parameters>
+                </algorithm>
+                <updateFrequency>100</updateFrequency>
+            </predictionEngine>
+
+            <riskManagement>
+                <id>risk_manager</id>
+                <description>Comprehensive risk management and position sizing</description>
+                <metrics>
+                    <metric>drawdownPercent</metric>
+                    <metric>winLossRatio</metric>
+                    <metric>sharpeRatio</metric>
+                    <metric>maxConsecutiveLosses</metric>
+                </metrics>
+                <positionSizing>
+                    <method>Kelly Criterion with limits</method>
+                    <maxPositionSize>5</maxPositionSize>
+                    <minPositionSize>1</minPositionSize>
+                </positionSizing>
+            </riskManagement>
+        </precisionAnalyzer>
+
+        <dataFlow>
+            <inbound>
+                <stream name="tick_stream">Real-time tick prices from Deriv API</stream>
+                <stream name="digit_extraction">Extract last digit from each tick</stream>
+                <stream name="pattern_stream">Sequential digit pattern stream</stream>
+            </inbound>
+            
+            <processing>
+                <buffer size="200">Historical digit buffer</buffer>
+                <updateRate>100ms</updateRate>
+                <filterOutliers>true</filterOutliers>
+            </processing>
+
+            <outbound>
+                <stream name="predictions">Match/Differ predictions with confidence</stream>
+                <stream name="trades">Executed trade orders</stream>
+                <stream name="metrics">Performance metrics and statistics</stream>
+            </outbound>
+        </dataFlow>
+    </engine>
+
+    <trading>
+        <contractSpecifications>
+            <contract>
+                <type>MATCHDIFF</type>
+                <description>Match or Differ contract for digit prediction</description>
+                <underlying>1HZ100V</underlying>
+                <minStake>1</minStake>
+                <maxStake>10000</maxStake>
+                <payout>2x</payout>
+                <duration>5 ticks</duration>
+            </contract>
+        </contractSpecifications>
+
+        <betTypes>
+            <bet>
+                <id>bet_match</id>
+                <type>match</type>
+                <label>Match</label>
+                <description>Next digit matches current digit (0-9)</description>
+                <payout>2.0</payout>
+                <contractType>MATCHDIFF</contractType>
+            </bet>
+            <bet>
+                <id>bet_differ</id>
+                <type>differ</type>
+                <label>Differ</label>
+                <description>Next digit differs from current digit</description>
+                <payout>2.0</payout>
+                <contractType>MATCHDIFF</contractType>
+            </bet>
+        </betTypes>
+
+        <statistics>
+            <stat>
+                <name>total_predictions</name>
+                <description>Total predictions made</description>
+                <type>integer</type>
+            </stat>
+            <stat>
+                <name>correct_predictions</name>
+                <description>Correct predictions</description>
+                <type>integer</type>
+            </stat>
+            <stat>
+                <name>win_rate</name>
+                <description>Win rate percentage</description>
+                <type>float</type>
+                <format>percentage</format>
+            </stat>
+            <stat>
+                <name>profit_loss</name>
+                <description>Total profit or loss</description>
+                <type>float</type>
+                <format>currency</format>
+            </stat>
+            <stat>
+                <name>daily_profit</name>
+                <description>Today's profit</description>
+                <type>float</type>
+                <format>currency</format>
+            </stat>
+            <stat>
+                <name>roi</name>
+                <description>Return on investment</description>
+                <type>float</type>
+                <format>percentage</format>
+            </stat>
+        </statistics>
+    </trading>
+
+    <liveTrading>
+        <enabled>true</enabled>
+        <autoStart>true</autoStart>
+        <description>Live trading configuration for real money</description>
+        <requirements>
+            <requirement>Valid Deriv account with real funds</requirement>
+            <requirement>Valid API token from Deriv app settings</requirement>
+            <requirement>Sufficient account balance for minimum stakes</requirement>
+        </requirements>
+        <safetyLimits>
+            <dailyLossLimit>500</dailyLossLimit>
+            <dailyProfitLimit>5000</dailyProfitLimit>
+            <maxDailyTrades>100</maxDailyTrades>
+            <maxConsecutiveLosses>5</maxConsecutiveLosses>
+        </safetyLimits>
+    </liveTrading>
+
+    <errorHandling>
+        <error>
+            <code>LIVE_001</code>
+            <name>LiveTradingError</name>
+            <message>Error in live trading execution</message>
+            <severity>critical</severity>
+            <action>Log and stop bot immediately</action>
+        </error>
+        <error>
+            <code>CONN_001</code>
+            <name>ConnectionError</name>
+            <message>WebSocket connection failed</message>
+            <severity>critical</severity>
+            <action>Reconnect with exponential backoff</action>
+        </error>
+        <error>
+            <code>AUTH_001</code>
+            <name>AuthenticationError</name>
+            <message>API token invalid or expired</message>
+            <severity>critical</severity>
+            <action>Stop bot and prompt for new token</action>
+        </error>
+        <error>
+            <code>INSUFFICIENT_FUNDS</code>
+            <name>InsufficientFundsError</name>
+            <message>Account balance insufficient for trade</message>
+            <severity>high</severity>
+            <action>Reduce bet size or stop trading</action>
+        </error>
+    </errorHandling>
+
+    <logging>
+        <config>
+            <enabled>true</enabled>
+            <level>INFO</level>
+            <format>%(asctime)s - %(name)s - %(levelname)s - %(message)s</format>
+            <output>
+                <file>deriv_match_differ_precision.log</file>
+                <console>true</console>
+                <maxFileSize>10485760</maxFileSize>
+                <backupCount>5</backupCount>
+            </output>
+        </config>
+    </logging>
+
+</derivPrecisionBot>
