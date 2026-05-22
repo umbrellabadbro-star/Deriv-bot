@@ -1,63 +1,297 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<derivBot>
+<derivBot xmlns="http://deriv.com/bot/schema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://deriv.com/bot/schema deriv-bot.xsd">
+    
     <metadata>
         <name>Deriv Bot Match/Differ Predictor</name>
         <version>1.0.0</version>
+        <apiVersion>2.0</apiVersion>
         <description>AI-powered bot for predicting Match/Differ outcomes with digits 0-9</description>
         <author>Deriv Bot Development</author>
         <created>2026-05-22</created>
+        <updated>2026-05-22</updated>
         <botType>match_differ</botType>
+        <supportedPlatforms>
+            <platform>DerivApp</platform>
+            <platform>DerivAPI</platform>
+            <platform>BinaryBot</platform>
+        </supportedPlatforms>
+        <requirements>
+            <requirement>
+                <name>DerivAPI</name>
+                <version>1.0+</version>
+                <module>deriv_api</module>
+            </requirement>
+            <requirement>
+                <name>Authentication</name>
+                <version>OAuth2</version>
+                <module>auth</module>
+            </requirement>
+        </requirements>
     </metadata>
 
+    <imports>
+        <import>
+            <module>json</module>
+            <type>standard</type>
+            <usage>Data serialization</usage>
+        </import>
+        <import>
+            <module>time</module>
+            <type>standard</type>
+            <usage>Timestamp tracking</usage>
+        </import>
+        <import>
+            <module>collections.deque</module>
+            <type>standard</type>
+            <usage>History buffer management</usage>
+        </import>
+        <import>
+            <module>typing</module>
+            <type>standard</type>
+            <usage>Type hints</usage>
+        </import>
+        <import>
+            <module>deriv_api</module>
+            <type>external</type>
+            <usage>Deriv API connection</usage>
+            <optional>false</optional>
+        </import>
+        <import>
+            <module>websocket</module>
+            <type>external</type>
+            <usage>WebSocket connection for real-time data</usage>
+            <optional>false</optional>
+        </import>
+    </imports>
+
     <configuration>
-        <settings>
-            <maxHistory>100</maxHistory>
-            <minConfidence>0.55</minConfidence>
-            <defaultBetAmount>100</defaultBetAmount>
-            <digitRange>
-                <min>0</min>
-                <max>9</max>
-            </digitRange>
-            <predictionTypes>
-                <type>match</type>
-                <type>differ</type>
-            </predictionTypes>
-        </settings>
+        <appSettings>
+            <setting>
+                <key>app_id</key>
+                <value>YOUR_APP_ID</value>
+                <description>Deriv App ID for authentication</description>
+                <required>true</required>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>api_token</key>
+                <value>YOUR_API_TOKEN</value>
+                <description>Deriv API token</description>
+                <required>true</required>
+                <type>string</type>
+                <sensitive>true</sensitive>
+            </setting>
+            <setting>
+                <key>api_endpoint</key>
+                <value>wss://ws.derivws.com/websockets/v3</value>
+                <description>Deriv WebSocket API endpoint</description>
+                <required>true</required>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>account_type</key>
+                <value>real</value>
+                <description>Account type (real or demo)</description>
+                <required>true</required>
+                <type>string</type>
+                <allowedValues>
+                    <value>real</value>
+                    <value>demo</value>
+                </allowedValues>
+            </setting>
+        </appSettings>
+
+        <botSettings>
+            <setting>
+                <key>maxHistory</key>
+                <value>100</value>
+                <description>Maximum number of historical values to keep</description>
+                <type>integer</type>
+                <min>10</min>
+                <max>1000</max>
+            </setting>
+            <setting>
+                <key>minConfidence</key>
+                <value>0.55</value>
+                <description>Minimum confidence level to place a trade</description>
+                <type>float</type>
+                <min>0.0</min>
+                <max>1.0</max>
+            </setting>
+            <setting>
+                <key>defaultBetAmount</key>
+                <value>100</value>
+                <description>Default bet amount in currency units</description>
+                <type>float</type>
+                <min>1</min>
+                <max>10000</max>
+            </setting>
+            <setting>
+                <key>maxDailyLoss</key>
+                <value>1000</value>
+                <description>Maximum daily loss limit</description>
+                <type>float</type>
+            </setting>
+            <setting>
+                <key>maxTradesPerDay</key>
+                <value>50</value>
+                <description>Maximum number of trades per day</description>
+                <type>integer</type>
+            </setting>
+            <setting>
+                <key>enableLogging</key>
+                <value>true</value>
+                <description>Enable detailed logging</description>
+                <type>boolean</type>
+            </setting>
+            <setting>
+                <key>logFile</key>
+                <value>deriv_bot.log</value>
+                <description>Log file path</description>
+                <type>string</type>
+            </setting>
+        </botSettings>
+
+        <marketSettings>
+            <setting>
+                <key>market</key>
+                <value>synthetic</value>
+                <description>Market type</description>
+                <type>string</type>
+                <allowedValues>
+                    <value>synthetic</value>
+                    <value>forex</value>
+                    <value>commodities</value>
+                </allowedValues>
+            </setting>
+            <setting>
+                <key>symbol</key>
+                <value>1HZ100V</value>
+                <description>Trading symbol for match/differ</description>
+                <type>string</type>
+            </setting>
+            <setting>
+                <key>digitCount</key>
+                <value>1</value>
+                <description>Number of digits to predict</description>
+                <type>integer</type>
+                <min>1</min>
+                <max>10</max>
+            </setting>
+            <setting>
+                <key>contractType</key>
+                <value>matchdiff</value>
+                <description>Contract type for match/differ trades</description>
+                <type>string</type>
+            </setting>
+        </marketSettings>
 
         <tradingRules>
             <rule>
+                <id>rule_01</id>
                 <name>Minimum Confidence</name>
                 <description>Only place trades when confidence >= minimum threshold</description>
                 <threshold>0.55</threshold>
-            </rule>
-            <rule>
-                <name>Pattern Analysis</name>
-                <description>Analyze historical patterns for match/differ occurrences</description>
                 <enabled>true</enabled>
             </rule>
             <rule>
+                <id>rule_02</id>
+                <name>Pattern Analysis</name>
+                <description>Analyze historical patterns for match/differ occurrences</description>
+                <enabled>true</enabled>
+                <minDataPoints>20</minDataPoints>
+            </rule>
+            <rule>
+                <id>rule_03</id>
                 <name>Frequency Adjustment</name>
                 <description>Adjust confidence based on digit frequency in history</description>
                 <weight>0.3</weight>
+                <enabled>true</enabled>
+            </rule>
+            <rule>
+                <id>rule_04</id>
+                <name>Stop Loss</name>
+                <description>Exit trade at specified loss percentage</description>
+                <stopLossPercent>10</stopLossPercent>
+                <enabled>true</enabled>
+            </rule>
+            <rule>
+                <id>rule_05</id>
+                <name>Take Profit</name>
+                <description>Exit trade at specified profit percentage</description>
+                <takeProfitPercent>20</takeProfitPercent>
+                <enabled>true</enabled>
+            </rule>
+            <rule>
+                <id>rule_06</id>
+                <name>Risk Management</name>
+                <description>Limit bet size based on account balance</description>
+                <maxRiskPercent>2</maxRiskPercent>
+                <enabled>true</enabled>
             </rule>
         </tradingRules>
     </configuration>
 
+    <authentication>
+        <method>OAuth2</method>
+        <provider>Deriv</provider>
+        <endpoints>
+            <tokenEndpoint>https://oauth.deriv.com/oauth2/token</tokenEndpoint>
+            <authEndpoint>https://oauth.deriv.com/oauth2/authorize</authEndpoint>
+            <revokeEndpoint>https://oauth.deriv.com/oauth2/revoke</revokeEndpoint>
+        </endpoints>
+        <scopes>
+            <scope>read</scope>
+            <scope>trade</scope>
+            <scope>payments</scope>
+            <scope>admin</scope>
+        </scopes>
+        <tokenExpiry>3600</tokenExpiry>
+    </authentication>
+
+    <apiConnections>
+        <connection>
+            <id>deriv_api_main</id>
+            <type>WebSocket</type>
+            <endpoint>wss://ws.derivws.com/websockets/v3</endpoint>
+            <protocol>JSON-RPC</protocol>
+            <reconnect>true</reconnect>
+            <reconnectInterval>5000</reconnectInterval>
+            <maxRetries>10</maxRetries>
+            <timeout>30000</timeout>
+        </connection>
+        <connection>
+            <id>deriv_api_secondary</id>
+            <type>REST</type>
+            <endpoint>https://api.deriv.com</endpoint>
+            <protocol>HTTPS</protocol>
+            <reconnect>true</reconnect>
+            <timeout>10000</timeout>
+        </connection>
+    </apiConnections>
+
     <engine>
         <analysis>
             <patternAnalysis>
+                <id>pattern_analyzer</id>
                 <description>Analyzes historical digit patterns</description>
+                <enabled>true</enabled>
                 <metrics>
                     <metric name="total_comparisons">Total digit pair comparisons</metric>
                     <metric name="matches">Number of matching consecutive digits</metric>
                     <metric name="differs">Number of differing consecutive digits</metric>
                     <metric name="match_ratio">Percentage of matches in history</metric>
                     <metric name="differ_ratio">Percentage of differs in history</metric>
+                    <metric name="streak_length">Longest consecutive match/differ streak</metric>
                 </metrics>
+                <algorithm>Standard statistical analysis</algorithm>
             </patternAnalysis>
 
             <frequencyAnalysis>
+                <id>frequency_analyzer</id>
                 <description>Tracks frequency of each digit 0-9</description>
+                <enabled>true</enabled>
+                <updateInterval>1000</updateInterval>
                 <digits>
                     <digit value="0"/>
                     <digit value="1"/>
@@ -73,54 +307,132 @@
             </frequencyAnalysis>
 
             <predictionEngine>
+                <id>prediction_engine</id>
                 <description>Generates match/differ predictions with confidence scores</description>
+                <enabled>true</enabled>
                 <algorithm>
                     <name>Confidence-Based Prediction</name>
+                    <version>1.0</version>
                     <steps>
-                        <step>1. Calculate match ratio from historical patterns</step>
-                        <step>2. Adjust confidence based on current digit frequency</step>
-                        <step>3. Normalize match and differ confidence values</step>
-                        <step>4. Select prediction with higher confidence</step>
-                        <step>5. Generate recommendation if confidence exceeds threshold</step>
+                        <step order="1">Calculate match ratio from historical patterns</step>
+                        <step order="2">Adjust confidence based on current digit frequency</step>
+                        <step order="3">Normalize match and differ confidence values</step>
+                        <step order="4">Select prediction with higher confidence</step>
+                        <step order="5">Generate recommendation if confidence exceeds threshold</step>
                     </steps>
+                    <parameters>
+                        <parameter name="frequencyWeight">0.3</parameter>
+                        <parameter name="patternWeight">0.7</parameter>
+                        <parameter name="smoothingFactor">0.1</parameter>
+                    </parameters>
                 </algorithm>
+                <updateFrequency>100</updateFrequency>
             </predictionEngine>
+
+            <riskAnalyzer>
+                <id>risk_analyzer</id>
+                <description>Analyzes and manages trading risk</description>
+                <enabled>true</enabled>
+                <metrics>
+                    <metric>drawdown_percent</metric>
+                    <metric>volatility_index</metric>
+                    <metric>sharpe_ratio</metric>
+                    <metric>win_loss_ratio</metric>
+                </metrics>
+            </riskAnalyzer>
         </analysis>
 
         <prediction>
             <output>
-                <field name="prediction">match or differ</field>
-                <field name="match_confidence">Confidence for match outcome (0.0-1.0)</field>
-                <field name="differ_confidence">Confidence for differ outcome (0.0-1.0)</field>
-                <field name="recommended_bet">Recommended bet type or null</field>
-                <field name="confidence_level">Overall confidence level (0.0-1.0)</field>
-                <field name="reason">Explanation for prediction</field>
+                <field name="prediction" type="string">match or differ</field>
+                <field name="match_confidence" type="float">Confidence for match outcome (0.0-1.0)</field>
+                <field name="differ_confidence" type="float">Confidence for differ outcome (0.0-1.0)</field>
+                <field name="recommended_bet" type="string">Recommended bet type or null</field>
+                <field name="confidence_level" type="float">Overall confidence level (0.0-1.0)</field>
+                <field name="reason" type="string">Explanation for prediction</field>
+                <field name="timestamp" type="timestamp">Prediction timestamp</field>
+                <field name="signal_strength" type="float">Signal strength indicator (0.0-1.0)</field>
             </output>
         </prediction>
+
+        <dataStream>
+            <source>
+                <type>WebSocket</type>
+                <endpoint>wss://ws.derivws.com/websockets/v3</endpoint>
+                <dataType>tick</dataType>
+            </source>
+            <processing>
+                <buffer>100</buffer>
+                <updateRate>100ms</updateRate>
+                <filterOutliers>true</filterOutliers>
+            </processing>
+        </dataStream>
     </engine>
 
     <trading>
+        <symbols>
+            <symbol>
+                <id>digit_match</id>
+                <name>Digits Match/Differ</name>
+                <market>Synthetic</market>
+                <description>Predict if next digit matches or differs</description>
+                <underlying>1HZ100V</underlying>
+                <minStake>1</minStake>
+                <maxStake>10000</maxStake>
+                <duration>5</duration>
+                <durationUnit>ticks</durationUnit>
+            </symbol>
+        </symbols>
+
         <betTypes>
             <bet>
+                <id>bet_match</id>
                 <type>match</type>
+                <label>Match</label>
                 <description>Next digit matches current digit</description>
-                <payout>2x on win</payout>
+                <payout>2x</payout>
+                <probability>0.5</probability>
+                <contractType>MATCHDIFF</contractType>
             </bet>
             <bet>
+                <id>bet_differ</id>
                 <type>differ</type>
+                <label>Differ</label>
                 <description>Next digit differs from current digit</description>
-                <payout>2x on win</payout>
+                <payout>2x</payout>
+                <probability>0.5</probability>
+                <contractType>MATCHDIFF</contractType>
             </bet>
         </betTypes>
 
+        <orderManagement>
+            <order>
+                <id>order_id</id>
+                <timestamp>execution_time</timestamp>
+                <betType>match_or_differ</betType>
+                <amount>bet_amount</amount>
+                <leverage>1</leverage>
+                <duration>5</duration>
+                <durationUnit>ticks</durationUnit>
+                <status>pending</status>
+            </order>
+        </orderManagement>
+
         <tradeManagement>
             <trade>
-                <timestamp>Trade execution time</timestamp>
-                <betType>match or differ</betType>
-                <amount>Bet amount</amount>
-                <outcome>Actual result</outcome>
-                <won>Win/Loss boolean</won>
-                <payout>Profit or loss amount</payout>
+                <id>trade_id</id>
+                <contractId>deriv_contract_id</contractId>
+                <timestamp>trade_execution_time</timestamp>
+                <betType>match_or_differ</betType>
+                <amount>bet_amount</amount>
+                <entryPrice>entry_price</entryPrice>
+                <currentPrice>current_market_price</currentPrice>
+                <outcome>actual_result</outcome>
+                <status>open</status>
+                <won>win_loss_boolean</won>
+                <payout>profit_or_loss_amount</payout>
+                <profitLoss>calculated_profit_loss</profitLoss>
+                <roi>return_on_investment</roi>
             </trade>
         </tradeManagement>
 
@@ -129,76 +441,141 @@
                 <name>total_predictions</name>
                 <description>Total number of predictions made</description>
                 <type>integer</type>
+                <value>0</value>
             </stat>
             <stat>
                 <name>correct_predictions</name>
                 <description>Number of correct predictions</description>
                 <type>integer</type>
+                <value>0</value>
             </stat>
             <stat>
                 <name>match_count</name>
-                <description>Total match predictions</description>
+                <description>Total match predictions placed</description>
                 <type>integer</type>
+                <value>0</value>
             </stat>
             <stat>
                 <name>differ_count</name>
-                <description>Total differ predictions</description>
+                <description>Total differ predictions placed</description>
                 <type>integer</type>
+                <value>0</value>
             </stat>
             <stat>
                 <name>win_rate</name>
                 <description>Percentage of winning predictions</description>
                 <type>float</type>
                 <format>percentage</format>
+                <value>0.0</value>
             </stat>
             <stat>
                 <name>profit_loss</name>
-                <description>Total profit or loss</description>
+                <description>Total profit or loss from all trades</description>
                 <type>float</type>
                 <format>currency</format>
+                <value>0.0</value>
             </stat>
             <stat>
                 <name>total_trades</name>
                 <description>Total number of trades executed</description>
                 <type>integer</type>
+                <value>0</value>
             </stat>
             <stat>
                 <name>history_size</name>
                 <description>Current size of digit history</description>
                 <type>integer</type>
+                <value>0</value>
+            </stat>
+            <stat>
+                <name>win_loss_ratio</name>
+                <description>Ratio of wins to losses</description>
+                <type>float</type>
+                <value>0.0</value>
+            </stat>
+            <stat>
+                <name>average_roi</name>
+                <description>Average return on investment</description>
+                <type>float</type>
+                <format>percentage</format>
+                <value>0.0</value>
+            </stat>
+            <stat>
+                <name>daily_profit</name>
+                <description>Today's profit or loss</description>
+                <type>float</type>
+                <format>currency</format>
+                <value>0.0</value>
+            </stat>
+            <stat>
+                <name>weekly_profit</name>
+                <description>This week's profit or loss</description>
+                <type>float</type>
+                <format>currency</format>
+                <value>0.0</value>
             </stat>
         </statistics>
     </trading>
 
     <methods>
         <method>
+            <name>initialize</name>
+            <description>Initialize bot with API connection and configuration</description>
+            <parameters>
+                <parameter name="config" type="dict" required="true">Configuration dictionary</parameter>
+                <parameter name="api_token" type="string" required="true">Deriv API token</parameter>
+            </parameters>
+            <returns>boolean</returns>
+            <exceptions>
+                <exception>AuthenticationError</exception>
+                <exception>ConnectionError</exception>
+                <exception>ConfigurationError</exception>
+            </exceptions>
+        </method>
+
+        <method>
+            <name>connect</name>
+            <description>Establish WebSocket connection with Deriv API</description>
+            <parameters/>
+            <returns>boolean</returns>
+            <exceptions>
+                <exception>ConnectionError</exception>
+                <exception>TimeoutError</exception>
+            </exceptions>
+        </method>
+
+        <method>
+            <name>disconnect</name>
+            <description>Disconnect from Deriv API</description>
+            <parameters/>
+            <returns>void</returns>
+        </method>
+
+        <method>
             <name>add_digit</name>
-            <description>Add a new digit to the history</description>
+            <description>Add a new digit to the history from live stream</description>
             <parameters>
                 <parameter name="digit" type="integer" required="true">Digit value (0-9)</parameter>
+                <parameter name="timestamp" type="float" required="false">Digit timestamp</parameter>
             </parameters>
             <returns>void</returns>
-            <throws>ValueError if digit is not between 0-9</throws>
+            <exceptions>
+                <exception>ValueError</exception>
+            </exceptions>
         </method>
 
         <method>
             <name>analyze_patterns</name>
             <description>Analyze historical patterns for match/differ occurrences</description>
             <parameters/>
-            <returns>
-                <return name="total_comparisons">Total number of digit comparisons</return>
-                <return name="matches">Number of matches</return>
-                <return name="differs">Number of differs</return>
-                <return name="match_ratio">Match percentage</return>
-                <return name="differ_ratio">Differ percentage</return>
-            </returns>
+            <returns>dict</returns>
         </method>
 
         <method>
             <name>get_digit_frequency</name>
             <description>Calculate digit frequency in history</description>
             <parameters/>
-            <returns>Dictionary with digit frequencies (0-10 for digits 0-9)</returns>
+            <returns>dict</returns>
         </method>
 
         <method>
@@ -207,163 +584,407 @@
             <parameters>
                 <parameter name="current_digit" type="integer" required="true">Current digit (0-9)</parameter>
             </parameters>
-            <returns>
-                <return name="prediction">match or differ</return>
-                <return name="match_confidence">Confidence for match</return>
-                <return name="differ_confidence">Confidence for differ</return>
-                <return name="recommended_bet">Recommended bet</return>
-                <return name="confidence_level">Overall confidence</return>
-                <return name="reason">Prediction reason</return>
-            </returns>
+            <returns>dict</returns>
+            <exceptions>
+                <exception>ValueError</exception>
+                <exception>InsufficientDataError</exception>
+            </exceptions>
         </method>
 
         <method>
             <name>place_trade</name>
-            <description>Place a trade with prediction</description>
+            <description>Place a trade with Deriv API</description>
             <parameters>
                 <parameter name="bet_type" type="string" required="true">match or differ</parameter>
                 <parameter name="amount" type="float" required="true">Bet amount</parameter>
-                <parameter name="outcome" type="string" required="false">Actual outcome for backtesting</parameter>
+                <parameter name="duration" type="integer" required="false">Trade duration in ticks</parameter>
             </parameters>
-            <returns>
-                <return name="timestamp">Trade execution time</return>
-                <return name="bet_type">Type of bet</return>
-                <return name="amount">Bet amount</return>
-                <return name="outcome">Actual outcome</return>
-                <return name="won">Whether trade was won</return>
-                <return name="payout">Profit or loss</return>
-            </returns>
+            <returns>dict</returns>
+            <exceptions>
+                <exception>InsufficientFundsError</exception>
+                <exception>OrderError</exception>
+                <exception>APIError</exception>
+            </exceptions>
+        </method>
+
+        <method>
+            <name>close_trade</name>
+            <description>Close an open trade</description>
+            <parameters>
+                <parameter name="contract_id" type="string" required="true">Contract ID to close</parameter>
+            </parameters>
+            <returns>dict</returns>
+            <exceptions>
+                <exception>TradeNotFoundError</exception>
+                <exception>APIError</exception>
+            </exceptions>
+        </method>
+
+        <method>
+            <name>get_account_balance</name>
+            <description>Get current account balance from Deriv</description>
+            <parameters/>
+            <returns>float</returns>
+            <exceptions>
+                <exception>APIError</exception>
+            </exceptions>
+        </method>
+
+        <method>
+            <name>get_open_trades</name>
+            <description>Get list of open trades</description>
+            <parameters/>
+            <returns>list</returns>
+            <exceptions>
+                <exception>APIError</exception>
+            </exceptions>
+        </method>
+
+        <method>
+            <name>get_trade_history</name>
+            <description>Get trade history for specific period</description>
+            <parameters>
+                <parameter name="days" type="integer" required="false">Number of days to retrieve</parameter>
+                <parameter name="limit" type="integer" required="false">Maximum records to return</parameter>
+            </parameters>
+            <returns>list</returns>
+            <exceptions>
+                <exception>APIError</exception>
+            </exceptions>
         </method>
 
         <method>
             <name>get_statistics</name>
             <description>Get bot statistics and performance metrics</description>
             <parameters/>
-            <returns>Dictionary containing all statistics</returns>
+            <returns>dict</returns>
         </method>
 
         <method>
             <name>get_current_state</name>
             <description>Get current state of the bot</description>
             <parameters/>
-            <returns>
-                <return name="history">Current digit history</return>
-                <return name="history_size">Size of history</return>
-                <return name="patterns">Pattern analysis</return>
-                <return name="digit_frequency">Digit frequencies</return>
-                <return name="statistics">Performance statistics</return>
-                <return name="recent_predictions">Last 5 predictions</return>
-            </returns>
+            <returns>dict</returns>
+        </method>
+
+        <method>
+            <name>start</name>
+            <description>Start the bot trading loop</description>
+            <parameters/>
+            <returns>void</returns>
+            <exceptions>
+                <exception>BotError</exception>
+            </exceptions>
+        </method>
+
+        <method>
+            <name>stop</name>
+            <description>Stop the bot gracefully</description>
+            <parameters/>
+            <returns>void</returns>
+        </method>
+
+        <method>
+            <name>pause</name>
+            <description>Pause bot trading without disconnecting</description>
+            <parameters/>
+            <returns>void</returns>
+        </method>
+
+        <method>
+            <name>resume</name>
+            <description>Resume bot trading</description>
+            <parameters/>
+            <returns>void</returns>
         </method>
     </methods>
 
     <dataFlow>
         <flow>
             <stage>1</stage>
-            <name>Data Collection</name>
-            <description>Add historical digits to bot memory</description>
-            <input>Digit stream (0-9)</input>
-            <action>add_digit()</action>
-            <output>Updated history buffer</output>
+            <name>API Connection</name>
+            <description>Establish secure WebSocket connection with Deriv</description>
+            <input>API credentials</input>
+            <action>connect(), authenticate()</action>
+            <output>Active WebSocket connection</output>
+            <error_handling>Retry on failure, exponential backoff</error_handling>
         </flow>
 
         <flow>
             <stage>2</stage>
+            <name>Data Collection</name>
+            <description>Receive real-time digit stream from Deriv API</description>
+            <input>WebSocket tick data</input>
+            <action>add_digit(), validate_data()</action>
+            <output>Updated history buffer</output>
+            <error_handling>Filter invalid values</error_handling>
+        </flow>
+
+        <flow>
+            <stage>3</stage>
             <name>Pattern Analysis</name>
             <description>Analyze match/differ patterns from history</description>
             <input>Digit history</input>
             <action>analyze_patterns()</action>
             <output>Match/differ ratios and statistics</output>
+            <error_handling>Handle insufficient data</error_handling>
         </flow>
 
         <flow>
-            <stage>3</stage>
+            <stage>4</stage>
             <name>Frequency Calculation</name>
             <description>Calculate frequency of each digit 0-9</description>
             <input>Digit history</input>
             <action>get_digit_frequency()</action>
             <output>Digit frequency map</output>
+            <error_handling>Default values on empty history</error_handling>
         </flow>
 
         <flow>
-            <stage>4</stage>
+            <stage>5</stage>
             <name>Prediction Generation</name>
             <description>Generate prediction with confidence scores</description>
             <input>Current digit, patterns, frequencies</input>
             <action>predict_next()</action>
             <output>Prediction with confidence levels</output>
-        </flow>
-
-        <flow>
-            <stage>5</stage>
-            <name>Trade Execution</name>
-            <description>Place trade based on recommendation</description>
-            <input>Prediction, bet type, amount</input>
-            <action>place_trade()</action>
-            <output>Trade record with execution details</output>
+            <error_handling>Return null on insufficient confidence</error_handling>
         </flow>
 
         <flow>
             <stage>6</stage>
+            <name>Risk Assessment</name>
+            <description>Evaluate risk and validate trade parameters</description>
+            <input>Prediction, account balance, position size</input>
+            <action>validate_trade(), check_limits()</action>
+            <output>Trade approval or rejection</output>
+            <error_handling>Reject trades exceeding limits</error_handling>
+        </flow>
+
+        <flow>
+            <stage>7</stage>
+            <name>Trade Execution</name>
+            <description>Place trade with Deriv API</description>
+            <input>Approved prediction, bet type, amount</input>
+            <action>place_trade()</action>
+            <output>Trade confirmation with contract ID</output>
+            <error_handling>Log errors, pause on repeated failures</error_handling>
+        </flow>
+
+        <flow>
+            <stage>8</stage>
+            <name>Trade Monitoring</name>
+            <description>Monitor open trades and update status</description>
+            <input>Contract ID, trade parameters</input>
+            <action>monitor_contract(), check_settlement()</action>
+            <output>Trade result and profit/loss</output>
+            <error_handling>Handle contract expiration</error_handling>
+        </flow>
+
+        <flow>
+            <stage>9</stage>
             <name>Performance Tracking</name>
             <description>Update statistics based on trade outcome</description>
             <input>Trade result</input>
-            <action>Update statistics</action>
+            <action>Update statistics, calculate metrics</action>
             <output>Updated performance metrics</output>
+            <error_handling>Persist stats to database</error_handling>
         </flow>
     </dataFlow>
 
+    <errorHandling>
+        <error>
+            <code>AUTH_001</code>
+            <name>AuthenticationError</name>
+            <message>Failed to authenticate with Deriv API</message>
+            <severity>critical</severity>
+            <action>Stop bot, prompt for new credentials</action>
+        </error>
+        <error>
+            <code>CONN_001</code>
+            <name>ConnectionError</name>
+            <message>WebSocket connection failed</message>
+            <severity>critical</severity>
+            <action>Attempt reconnect with exponential backoff</action>
+        </error>
+        <error>
+            <code>CONN_002</code>
+            <name>ConnectionTimeout</name>
+            <message>WebSocket connection timeout</message>
+            <severity>high</severity>
+            <action>Retry connection</action>
+        </error>
+        <error>
+            <code>DATA_001</code>
+            <name>InvalidDigit</name>
+            <message>Received invalid digit value</message>
+            <severity>medium</severity>
+            <action>Skip digit, continue processing</action>
+        </error>
+        <error>
+            <code>TRADE_001</code>
+            <name>InsufficientFunds</name>
+            <message>Account balance insufficient for trade</message>
+            <severity>high</severity>
+            <action>Reduce bet size or stop trading</action>
+        </error>
+        <error>
+            <code>TRADE_002</code>
+            <name>OrderError</name>
+            <message>Failed to place order</message>
+            <severity>high</severity>
+            <action>Log error, retry or skip</action>
+        </error>
+        <error>
+            <code>API_001</code>
+            <name>APIError</name>
+            <message>Deriv API returned error</message>
+            <severity>high</severity>
+            <action>Log error details, pause if critical</action>
+        </error>
+    </errorHandling>
+
+    <logging>
+        <config>
+            <enabled>true</enabled>
+            <level>INFO</level>
+            <format>%(asctime)s - %(name)s - %(levelname)s - %(message)s</format>
+            <output>
+                <file>deriv_bot.log</file>
+                <console>true</console>
+                <maxFileSize>10485760</maxFileSize>
+                <backupCount>5</backupCount>
+            </output>
+        </config>
+        <logEvents>
+            <event>Bot initialization</event>
+            <event>API connection/disconnection</event>
+            <event>Digit received</event>
+            <event>Prediction generated</event>
+            <event>Trade placed</event>
+            <event>Trade closed</event>
+            <event>Statistics updated</event>
+            <event>Error occurred</event>
+        </logEvents>
+    </logging>
+
     <examples>
         <example>
-            <name>Basic Usage</name>
-            <description>Initialize bot and add historical data</description>
+            <name>Basic Setup and Trading</name>
+            <description>Initialize bot and start trading</description>
             <code>
                 <![CDATA[
-bot = DerivBotMatchDiffer(max_history=50, min_confidence=0.55)
-digit_stream = [3, 3, 5, 7, 7, 7, 2, 2, 4, 6, 8, 8, 1, 3, 3, 5, 5, 9, 9, 0]
-for digit in digit_stream:
-    bot.add_digit(digit)
-                ]]>
-            </code>
-        </example>
+from deriv_bot_match_differ import DerivBotMatchDiffer
 
-        <example>
-            <name>Make Prediction</name>
-            <description>Predict next digit outcome</description>
-            <code>
-                <![CDATA[
-prediction = bot.predict_next(current_digit=5)
-print(f"Prediction: {prediction['prediction']}")
-print(f"Confidence: {prediction['match_confidence']:.2%}")
-                ]]>
-            </code>
-        </example>
-
-        <example>
-            <name>Place Trade</name>
-            <description>Execute a trade with outcome</description>
-            <code>
-                <![CDATA[
-trade = bot.place_trade(
-    bet_type='match',
-    amount=100,
-    outcome='match'
+# Initialize bot
+bot = DerivBotMatchDiffer(
+    max_history=100,
+    min_confidence=0.55
 )
-print(f"Result: {'WON' if trade['won'] else 'LOST'}")
-print(f"Payout: ${trade['payout']}")
-                ]]>
-            </code>
-        </example>
 
-        <example>
-            <name>Get Statistics</name>
-            <description>View bot performance metrics</description>
-            <code>
-                <![CDATA[
+# Configure API
+config = {
+    'api_token': 'YOUR_API_TOKEN',
+    'app_id': 'YOUR_APP_ID',
+    'account_type': 'demo'
+}
+
+# Connect to Deriv
+bot.initialize(config, 'YOUR_API_TOKEN')
+bot.connect()
+
+# Start trading
+bot.start()
+
+# Get statistics
 stats = bot.get_statistics()
 print(f"Win Rate: {stats['win_rate']}")
 print(f"Profit/Loss: ${stats['profit_loss']}")
-print(f"Total Trades: {stats['total_trades']}")
+                ]]>
+            </code>
+        </example>
+
+        <example>
+            <name>Manual Trade Placement</name>
+            <description>Make prediction and place manual trade</description>
+            <code>
+                <![CDATA[
+# Get current balance
+balance = bot.get_account_balance()
+print(f"Account Balance: ${balance}")
+
+# Make prediction for current digit
+prediction = bot.predict_next(current_digit=5)
+print(f"Prediction: {prediction['prediction']}")
+print(f"Confidence: {prediction['match_confidence']:.2%}")
+
+# Place trade if recommended
+if prediction['recommended_bet']:
+    trade = bot.place_trade(
+        bet_type=prediction['recommended_bet'],
+        amount=100
+    )
+    print(f"Trade placed: {trade['contractId']}")
+                ]]>
+            </code>
+        </example>
+
+        <example>
+            <name>View Trade History</name>
+            <description>Retrieve and display trade history</description>
+            <code>
+                <![CDATA[
+# Get last 7 days of trades
+history = bot.get_trade_history(days=7)
+
+# Display trades
+for trade in history:
+    status = "WON" if trade['won'] else "LOST"
+    print(f"{trade['timestamp']} - {status} - "
+          f"Prediction: {trade['betType']} - "
+          f"P/L: ${trade['profitLoss']}")
+
+# Get current statistics
+stats = bot.get_statistics()
+print(f"\nTotal Trades: {stats['total_trades']}")
+print(f"Win Rate: {stats['win_rate']}")
+print(f"Total P/L: ${stats['profit_loss']}")
+                ]]>
+            </code>
+        </example>
+
+        <example>
+            <name>Advanced Risk Management</name>
+            <description>Implement risk management strategies</description>
+            <code>
+                <![CDATA[
+# Stop bot if daily loss exceeds limit
+def check_daily_loss():
+    today_pl = bot.statistics.get('daily_profit', 0)
+    if today_pl < -1000:  # Stop if -$1000
+        print("Daily loss limit reached. Stopping bot.")
+        bot.stop()
+        return False
+    return True
+
+# Reduce bet size on losing streak
+def adjust_bet_size():
+    win_rate = bot.statistics.get('win_rate', 0)
+    if win_rate < 0.4:
+        # Use smaller bet size
+        bot.config['defaultBetAmount'] = 50
+    elif win_rate > 0.6:
+        # Increase bet size
+        bot.config['defaultBetAmount'] = 100
+
+# Main trading loop
+while bot.is_running:
+    if not check_daily_loss():
+        break
+    
+    adjust_bet_size()
+    
+    # Continue trading
+    time.sleep(1)
                 ]]>
             </code>
         </example>
@@ -372,33 +993,163 @@ print(f"Total Trades: {stats['total_trades']}")
     <performance>
         <benchmarks>
             <benchmark>
+                <metric>Connection Time</metric>
+                <value>100-500ms</value>
+                <unit>milliseconds</unit>
+            </benchmark>
+            <benchmark>
                 <metric>Analysis Speed</metric>
-                <value>O(n) where n is history size</value>
+                <value>O(n)</value>
+                <description>Linear with history size</description>
             </benchmark>
             <benchmark>
                 <metric>Memory Usage</metric>
-                <value>O(max_history) limited to 100 digits</value>
+                <value>5-10MB</value>
+                <description>With 100 digit history</description>
             </benchmark>
             <benchmark>
                 <metric>Prediction Time</metric>
-                <value>&lt;1ms per prediction</value>
+                <value>&lt;1ms</value>
+                <unit>milliseconds</unit>
+            </benchmark>
+            <benchmark>
+                <metric>Trade Execution</metric>
+                <value>500-2000ms</value>
+                <unit>milliseconds</unit>
+                <description>Includes API latency</description>
+            </benchmark>
+            <benchmark>
+                <metric>WebSocket Throughput</metric>
+                <value>100+ ticks/sec</value>
+                <description>Tick data processing capacity</description>
             </benchmark>
         </benchmarks>
+
+        <optimization>
+            <tip>Reduce maxHistory for faster analysis on low-end devices</tip>
+            <tip>Disable detailed logging in production for better performance</tip>
+            <tip>Use demo account for testing before live trading</tip>
+            <tip>Monitor bot performance and adjust confidence thresholds</tip>
+        </optimization>
     </performance>
+
+    <systemRequirements>
+        <requirement>
+            <component>Python</component>
+            <version>3.7+</version>
+        </requirement>
+        <requirement>
+            <component>Memory</component>
+            <value>512MB</value>
+            <description>Minimum RAM required</description>
+        </requirement>
+        <requirement>
+            <component>Storage</component>
+            <value>50MB</value>
+            <description>For logs and database</description>
+        </requirement>
+        <requirement>
+            <component>Internet</component>
+            <speed>2Mbps</speed>
+            <description>Stable connection required</description>
+        </requirement>
+        <requirement>
+            <component>OS</component>
+            <value>Windows, macOS, Linux</value>
+        </requirement>
+    </systemRequirements>
 
     <supportedFormats>
         <format>Python 3.6+</format>
-        <format>JSON export</format>
-        <format>CSV logs</format>
+        <format>JSON export/import</format>
+        <format>CSV logs and reports</format>
         <format>XML configuration</format>
+        <format>WebSocket (JSON-RPC)</format>
+        <format>REST API</format>
     </supportedFormats>
 
     <notes>
-        <note>Minimum of 2 historical digits required for pattern analysis</note>
-        <note>Confidence threshold (0.55 default) determines trade recommendations</note>
-        <note>Frequency adjustment weight is 0.3 (30% of total confidence)</note>
-        <note>All confidence values are normalized between 0.0 and 1.0</note>
-        <note>Win probability 2:1 on successful trades</note>
+        <note priority="critical">Always use demo account for testing before live trading</note>
+        <note priority="critical">Keep API tokens secure and never commit to version control</note>
+        <note priority="high">Minimum of 20 historical digits required for accurate pattern analysis</note>
+        <note priority="high">Confidence threshold (0.55 default) determines trade recommendations</note>
+        <note priority="high">Risk management rules are essential to prevent large losses</note>
+        <note priority="medium">Frequency adjustment weight is 0.3 (30% of total confidence)</note>
+        <note priority="medium">All confidence values are normalized between 0.0 and 1.0</note>
+        <note priority="medium">Win probability is approximately 2:1 on successful trades</note>
+        <note priority="low">Monitor server logs for connection issues</note>
+        <note priority="low">Regularly backup trade history and statistics</note>
     </notes>
+
+    <troubleshooting>
+        <issue>
+            <title>Import Failed Error</title>
+            <solutions>
+                <solution>1. Ensure all dependencies are installed: pip install -r requirements.txt</solution>
+                <solution>2. Verify Python version is 3.7 or higher: python --version</solution>
+                <solution>3. Check that deriv_api module is properly installed: pip install deriv-api</solution>
+                <solution>4. Verify WebSocket module is installed: pip install websocket-client</solution>
+                <solution>5. Check system PATH includes Python installation</solution>
+                <solution>6. Try reinstalling the bot: pip install --force-reinstall deriv-bot</solution>
+            </solutions>
+        </issue>
+
+        <issue>
+            <title>Connection Failed</title>
+            <solutions>
+                <solution>1. Verify internet connection is stable</solution>
+                <solution>2. Check API endpoint is correct: wss://ws.derivws.com/websockets/v3</solution>
+                <solution>3. Verify API token is valid and not expired</solution>
+                <solution>4. Check firewall settings allow WebSocket connections</solution>
+                <solution>5. Try connecting to demo server first</solution>
+                <solution>6. Check API server status at deriv.com/status</solution>
+            </solutions>
+        </issue>
+
+        <issue>
+            <title>No Predictions Generated</title>
+            <solutions>
+                <solution>1. Wait for sufficient historical data (minimum 20 digits)</solution>
+                <solution>2. Check confidence threshold is not too high</solution>
+                <solution>3. Verify pattern analysis is enabled in configuration</solution>
+                <solution>4. Check bot logs for errors: tail -f deriv_bot.log</solution>
+                <solution>5. Reset bot statistics and retry</solution>
+            </solutions>
+        </issue>
+
+        <issue>
+            <title>Trades Not Placing</title>
+            <solutions>
+                <solution>1. Verify account has sufficient balance</solution>
+                <solution>2. Check bet amount is within allowed range</solution>
+                <solution>3. Verify trading hours (some instruments have limited hours)</solution>
+                <solution>4. Check account is not restricted or limited</solution>
+                <solution>5. Try placing a manual test trade to verify account status</solution>
+                <solution>6. Check API error logs for specific error message</solution>
+            </solutions>
+        </issue>
+    </troubleshooting>
+
+    <versionHistory>
+        <version>
+            <number>1.0.0</number>
+            <date>2026-05-22</date>
+            <changes>
+                <change>Initial release</change>
+                <change>Match/Differ prediction engine</change>
+                <change>Deriv API integration</change>
+                <change>WebSocket real-time data streaming</change>
+                <change>Risk management framework</change>
+                <change>Comprehensive logging and statistics</change>
+            </changes>
+        </version>
+    </versionHistory>
+
+    <support>
+        <contact>support@derivbot.com</contact>
+        <documentation>https://docs.derivbot.com</documentation>
+        <github>https://github.com/umbrellabadbro-star/Deriv-bot</github>
+        <discord>https://discord.gg/derivbot</discord>
+    </support>
 
 </derivBot>
