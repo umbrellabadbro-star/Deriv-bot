@@ -1,0 +1,1072 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xml xmlns="http://www.w3.org/1999/xhtml" collection="false">
+  <variables>
+    <!-- Core Trading Parameters -->
+    <variable type="" id="trade_duration">TRADE:: Duration (seconds)</variable>
+    <variable type="" id="trade_duration_type">TRADE:: Duration Type</variable>
+    <variable type="" id="trade_min_stake">TRADE:: Min Stake</variable>
+    <variable type="" id="trade_max_stake">TRADE:: Max Stake</variable>
+    <variable type="" id="trade_type">TRADE:: Type (Match/Differ)</variable>
+    <variable type="" id="trade_tick_mode">TRADE:: Tick Mode (1/5)</variable>
+    
+    <!-- Fund Management Variables -->
+    <variable type="" id="fm_base_stake">FM:: Base Stake (Configurable)</variable>
+    <variable type="" id="fm_target_profit">FM:: Target Profit</variable>
+    <variable type="" id="fm_stop_loss">FM:: Stop Loss</variable>
+    <variable type="" id="fm_current_stake">FM:: Current Stake</variable>
+    <variable type="" id="fm_martingale_factor">FM:: Martingale Factor</variable>
+    <variable type="" id="fm_martingale_level">FM:: Martingale Level</variable>
+    <variable type="" id="fm_compound_level">FM:: Compound Level</variable>
+    <variable type="" id="fm_total_profit">FM:: Total Profit</variable>
+    <variable type="" id="fm_trade_again">FM:: Trade Again Flag</variable>
+    <variable type="" id="fm_win_count">FM:: Win Count</variable>
+    <variable type="" id="fm_loss_count">FM:: Loss Count</variable>
+    <variable type="" id="fm_loss_level">FM:: Loss Level Counter</variable>
+    
+    <!-- Data Processing Variables -->
+    <variable type="" id="dp_digit_list">DP:: Digit List</variable>
+    <variable type="" id="dp_analysis_period">DP:: Analysis Period</variable>
+    <variable type="" id="dp_list_length">DP:: List Length</variable>
+    <variable type="" id="dp_recent_items">DP:: Recent Items (Sublist)</variable>
+    <variable type="" id="dp_item_counter">DP:: Item Counter</variable>
+    
+    <!-- Digit Frequency Variables (0-9) -->
+    <variable type="" id="freq_digit_0">FREQ:: Digit 0 Count</variable>
+    <variable type="" id="freq_digit_1">FREQ:: Digit 1 Count</variable>
+    <variable type="" id="freq_digit_2">FREQ:: Digit 2 Count</variable>
+    <variable type="" id="freq_digit_3">FREQ:: Digit 3 Count</variable>
+    <variable type="" id="freq_digit_4">FREQ:: Digit 4 Count</variable>
+    <variable type="" id="freq_digit_5">FREQ:: Digit 5 Count</variable>
+    <variable type="" id="freq_digit_6">FREQ:: Digit 6 Count</variable>
+    <variable type="" id="freq_digit_7">FREQ:: Digit 7 Count</variable>
+    <variable type="" id="freq_digit_8">FREQ:: Digit 8 Count</variable>
+    <variable type="" id="freq_digit_9">FREQ:: Digit 9 Count</variable>
+    
+    <!-- Prediction Variables -->
+    <variable type="" id="pred_sorted_list">PRED:: Sorted Digit List</variable>
+    <variable type="" id="pred_next_digit">PRED:: Next Prediction</variable>
+    <variable type="" id="pred_confidence">PRED:: Confidence Score</variable>
+    <variable type="" id="pred_current_index">PRED:: Current Index</variable>
+    <variable type="" id="pred_temp_digit">PRED:: Temp Digit</variable>
+    <variable type="" id="pred_temp_freq">PRED:: Temp Frequency</variable>
+    <variable type="" id="pred_max_freq">PRED:: Max Frequency</variable>
+    
+    <!-- Contract Result -->
+    <variable type="" id="contract_profit">CONTRACT:: Profit Amount</variable>
+    <variable type="" id="contract_result">CONTRACT:: Win/Loss Flag</variable>
+  </variables>
+
+  <!-- MAIN TRADING BLOCK -->
+  <block type="trade" id="main_trade_block" x="0" y="0">
+    <field name="MARKET_LIST">volidx</field>
+    <field name="SUBMARKET_LIST">random_index</field>
+    <field name="SYMBOL_LIST">R_100</field>
+    <field name="TRADETYPECAT_LIST">digits</field>
+    <field name="TRADETYPE_LIST">overunder</field>
+    <field name="TYPE_LIST">both</field>
+    <field name="CANDLEINTERVAL_LIST">28800</field>
+    <field name="TIME_MACHINE_ENABLED">FALSE</field>
+    <field name="RESTARTONERROR">FALSE</field>
+    
+    <!-- INITIALIZATION STATEMENT -->
+    <statement name="INITIALIZATION">
+      <block type="procedures_callnoreturn" id="init_fund_mgmt">
+        <mutation name="Initialize Fund Management">
+          <arg name="Base Stake"></arg>
+          <arg name="Target Profit"></arg>
+          <arg name="Stop Loss"></arg>
+          <arg name="Martingale Factor"></arg>
+          <arg name="Martingale Level"></arg>
+          <arg name="Compound Level"></arg>
+        </mutation>
+        <value name="ARG0">
+          <block type="math_number" id="init_base_stake">
+            <field name="NUM">0.35</field>
+          </block>
+        </value>
+        <value name="ARG1">
+          <block type="math_number" id="init_target">
+            <field name="NUM">200</field>
+          </block>
+        </value>
+        <value name="ARG2">
+          <block type="math_number" id="init_stoploss">
+            <field name="NUM">281.16</field>
+          </block>
+        </value>
+        <value name="ARG3">
+          <block type="math_number" id="init_martingale_factor">
+            <field name="NUM">5</field>
+          </block>
+        </value>
+        <value name="ARG4">
+          <block type="math_number" id="init_martingale_level">
+            <field name="NUM">4</field>
+          </block>
+        </value>
+        <value name="ARG5">
+          <block type="math_number" id="init_compound_level">
+            <field name="NUM">1</field>
+          </block>
+        </value>
+      </block>
+    </statement>
+
+    <!-- SUBMARKET STATEMENT - Main Trading Logic -->
+    <statement name="SUBMARKET">
+      <block type="variables_set" id="set_trade_config">
+        <field name="VAR" id="trade_duration">TRADE:: Duration (seconds)</field>
+        <value name="VALUE">
+          <block type="math_number" id="trade_duration_val">
+            <field name="NUM">60</field>
+          </block>
+        </value>
+        <next>
+          <block type="variables_set" id="set_trade_type">
+            <field name="VAR" id="trade_type">TRADE:: Type (Match/Differ)</field>
+            <value name="VALUE">
+              <block type="text" id="trade_type_match">
+                <field name="TEXT">match</field>
+              </block>
+            </value>
+            <next>
+              <block type="variables_set" id="set_analysis_period">
+                <field name="VAR" id="dp_analysis_period">DP:: Analysis Period</field>
+                <value name="VALUE">
+                  <block type="math_number" id="analysis_period_val">
+                    <field name="NUM">20</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="procedures_callnoreturn" id="validate_data">
+                    <mutation name="Validate and Process Digit List">
+                      <arg name="Digit List"></arg>
+                      <arg name="Analysis Period"></arg>
+                    </mutation>
+                    <value name="ARG0">
+                      <block type="variables_get" id="get_digit_list">
+                        <field name="VAR" id="dp_digit_list">DP:: Digit List</field>
+                      </block>
+                    </value>
+                    <value name="ARG1">
+                      <block type="variables_get" id="get_period">
+                        <field name="VAR" id="dp_analysis_period">DP:: Analysis Period</field>
+                      </block>
+                    </value>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+      <next>
+        <block type="tradeOptions" id="execute_trade">
+          <field name="DURATIONTYPE_LIST">t</field>
+          <field name="CURRENCY_LIST">USD</field>
+          <value name="DURATION">
+            <block type="variables_get" id="trade_duration_exec">
+              <field name="VAR" id="trade_duration">TRADE:: Duration (seconds)</field>
+            </block>
+          </value>
+          <value name="AMOUNT">
+            <block type="procedures_callreturn" id="get_current_stake">
+              <mutation name="Get Current Stake"></mutation>
+            </block>
+          </value>
+          <value name="PREDICTION">
+            <block type="procedures_callreturn" id="get_prediction">
+              <mutation name="Get Next Prediction"></mutation>
+            </block>
+          </value>
+        </block>
+      </next>
+    </statement>
+  </block>
+
+  <!-- DURING PURCHASE BLOCK -->
+  <block type="during_purchase" id="during_purchase_block" x="0" y="400">
+    <statement name="DURING_PURCHASE_STACK">
+      <block type="controls_if" id="check_sell_signal">
+        <value name="IF0">
+          <block type="check_sell" id="sell_check"></block>
+        </value>
+        <statement name="DO0">
+          <block type="notify" id="notify_sell">
+            <field name="NOTIFICATION_TYPE">info</field>
+            <field name="NOTIFICATION_SOUND">silent</field>
+            <value name="MESSAGE">
+              <shadow type="text" id="msg_sell">
+                <field name="TEXT">Sell signal triggered</field>
+              </shadow>
+            </value>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+  <!-- BEFORE PURCHASE VALIDATION BLOCK -->
+  <block type="before_purchase" id="before_purchase_block" x="0" y="550" collapsed="false">
+    <statement name="BEFOREPURCHASE_STACK">
+      <block type="controls_if" id="validate_list_length">
+        <value name="IF0">
+          <block type="logic_compare" id="compare_list_length">
+            <field name="OP">GTE</field>
+            <value name="A">
+              <block type="lists_length" id="get_list_length">
+                <value name="VALUE">
+                  <block type="variables_get" id="get_digit_list_val">
+                    <field name="VAR" id="dp_digit_list">DP:: Digit List</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <value name="B">
+              <block type="variables_get" id="compare_period">
+                <field name="VAR" id="dp_analysis_period">DP:: Analysis Period</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <block type="procedures_callnoreturn" id="analyze_pattern">
+            <mutation name="Analyze Digit Pattern">
+              <arg name="Input List"></arg>
+              <arg name="Period"></arg>
+            </mutation>
+            <value name="ARG0">
+              <block type="variables_get" id="analyze_input_list">
+                <field name="VAR" id="dp_digit_list">DP:: Digit List</field>
+              </block>
+            </value>
+            <value name="ARG1">
+              <block type="variables_get" id="analyze_period">
+                <field name="VAR" id="dp_analysis_period">DP:: Analysis Period</field>
+              </block>
+            </value>
+          </block>
+        </statement>
+        <statement name="ELSE">
+          <block type="notify" id="notify_collecting">
+            <field name="NOTIFICATION_TYPE">warn</field>
+            <field name="NOTIFICATION_SOUND">silent</field>
+            <value name="MESSAGE">
+              <shadow type="text" id="msg_collecting">
+                <field name="TEXT">Collecting sufficient data...</field>
+              </shadow>
+            </value>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ========== FUNCTION DEFINITIONS ========== -->
+
+  <!-- INITIALIZE FUND MANAGEMENT FUNCTION (FIXED) -->
+  <block type="procedures_defnoreturn" id="proc_init_fund_mgmt" x="500" y="0">
+    <mutation>
+      <arg name="Base Stake" varid="fm_base_stake"></arg>
+      <arg name="Target Profit" varid="fm_target_profit"></arg>
+      <arg name="Stop Loss" varid="fm_stop_loss"></arg>
+      <arg name="Martingale Factor" varid="fm_martingale_factor"></arg>
+      <arg name="Martingale Level" varid="fm_martingale_level"></arg>
+      <arg name="Compound Level" varid="fm_compound_level"></arg>
+    </mutation>
+    <field name="NAME">Initialize Fund Management</field>
+    <comment pinned="false" h="80" w="160">Initialize all fund management parameters with configurable base stake</comment>
+    <statement name="STACK">
+      <block type="variables_set" id="init_base_stake_var">
+        <field name="VAR" id="fm_base_stake">FM:: Base Stake (Configurable)</field>
+        <value name="VALUE">
+          <block type="variables_get" id="get_base_stake_arg">
+            <field name="VAR" id="fm_base_stake">FM:: Base Stake (Configurable)</field>
+          </block>
+        </value>
+        <next>
+          <block type="variables_set" id="init_current_stake">
+            <field name="VAR" id="fm_current_stake">FM:: Current Stake</field>
+            <value name="VALUE">
+              <block type="variables_get" id="init_current_from_base">
+                <field name="VAR" id="fm_base_stake">FM:: Base Stake (Configurable)</field>
+              </block>
+            </value>
+            <next>
+              <block type="variables_set" id="init_total_profit">
+                <field name="VAR" id="fm_total_profit">FM:: Total Profit</field>
+                <value name="VALUE">
+                  <block type="math_number" id="init_profit_val">
+                    <field name="NUM">0</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="variables_set" id="init_win_count">
+                    <field name="VAR" id="fm_win_count">FM:: Win Count</field>
+                    <value name="VALUE">
+                      <block type="math_number" id="init_win_val">
+                        <field name="NUM">0</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="variables_set" id="init_loss_count">
+                        <field name="VAR" id="fm_loss_count">FM:: Loss Count</field>
+                        <value name="VALUE">
+                          <block type="math_number" id="init_loss_val">
+                            <field name="NUM">0</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="variables_set" id="init_loss_level">
+                            <field name="VAR" id="fm_loss_level">FM:: Loss Level Counter</field>
+                            <value name="VALUE">
+                              <block type="math_number" id="init_loss_level_val">
+                                <field name="NUM">0</field>
+                              </block>
+                            </value>
+                            <next>
+                              <block type="variables_set" id="init_trade_again">
+                                <field name="VAR" id="fm_trade_again">FM:: Trade Again Flag</field>
+                                <value name="VALUE">
+                                  <block type="logic_boolean" id="init_trade_true">
+                                    <field name="BOOL">TRUE</field>
+                                  </block>
+                                </value>
+                                <next>
+                                  <block type="notify" id="notify_init_complete">
+                                    <field name="NOTIFICATION_TYPE">info</field>
+                                    <field name="NOTIFICATION_SOUND">silent</field>
+                                    <value name="MESSAGE">
+                                      <shadow type="text" id="msg_init">
+                                        <field name="TEXT">Fund management initialized with base stake</field>
+                                      </shadow>
+                                    </value>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+
+  <!-- VALIDATE AND PROCESS DIGIT LIST FUNCTION -->
+  <block type="procedures_defnoreturn" id="proc_validate_list" x="500" y="250">
+    <mutation>
+      <arg name="Digit List" varid="dp_digit_list"></arg>
+      <arg name="Analysis Period" varid="dp_analysis_period"></arg>
+    </mutation>
+    <field name="NAME">Validate and Process Digit List</field>
+    <comment pinned="false" h="80" w="160">Validate list and extract recent items for analysis</comment>
+    <statement name="STACK">
+      <block type="variables_set" id="get_list_len">
+        <field name="VAR" id="dp_list_length">DP:: List Length</field>
+        <value name="VALUE">
+          <block type="lists_length" id="calc_list_len">
+            <value name="VALUE">
+              <block type="variables_get" id="get_list_for_len">
+                <field name="VAR" id="dp_digit_list">DP:: Digit List</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <next>
+          <block type="controls_if" id="validate_sufficient_data">
+            <value name="IF0">
+              <block type="logic_compare" id="check_sufficient">
+                <field name="OP">GTE</field>
+                <value name="A">
+                  <block type="variables_get" id="check_len">
+                    <field name="VAR" id="dp_list_length">DP:: List Length</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="variables_get" id="check_period">
+                    <field name="VAR" id="dp_analysis_period">DP:: Analysis Period</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <block type="variables_set" id="extract_recent">
+                <field name="VAR" id="dp_recent_items">DP:: Recent Items (Sublist)</field>
+                <value name="VALUE">
+                  <block type="lists_getSublist" id="get_recent_sublist">
+                    <mutation at1="true" at2="false"></mutation>
+                    <field name="WHERE1">FROM_END</field>
+                    <field name="WHERE2">LAST</field>
+                    <value name="LIST">
+                      <block type="variables_get" id="get_list_for_sublist">
+                        <field name="VAR" id="dp_digit_list">DP:: Digit List</field>
+                      </block>
+                    </value>
+                    <value name="AT1">
+                      <block type="variables_get" id="sublist_period">
+                        <field name="VAR" id="dp_analysis_period">DP:: Analysis Period</field>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+              </block>
+            </statement>
+            <statement name="ELSE">
+              <block type="notify" id="warn_insufficient">
+                <field name="NOTIFICATION_TYPE">warn</field>
+                <field name="NOTIFICATION_SOUND">silent</field>
+                <value name="MESSAGE">
+                  <shadow type="text" id="msg_insufficient">
+                    <field name="TEXT">Insufficient data collected. Waiting for more candles...</field>
+                  </shadow>
+                </value>
+              </block>
+            </statement>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ANALYZE DIGIT PATTERN FUNCTION (OPTIMIZED) -->
+  <block type="procedures_defnoreturn" id="proc_analyze_pattern" x="500" y="500">
+    <mutation>
+      <arg name="Input List" varid="dp_recent_items"></arg>
+      <arg name="Period" varid="dp_analysis_period"></arg>
+    </mutation>
+    <field name="NAME">Analyze Digit Pattern</field>
+    <comment pinned="false" h="80" w="160">Count frequency of each digit 0-9 in the list - OPTIMIZED</comment>
+    <statement name="STACK">
+      <!-- Reset all frequency counters in one block -->
+      <block type="variables_set" id="reset_freq_0">
+        <field name="VAR" id="freq_digit_0">FREQ:: Digit 0 Count</field>
+        <value name="VALUE">
+          <block type="math_number" id="reset_freq_0_val">
+            <field name="NUM">0</field>
+          </block>
+        </value>
+        <next>
+          <block type="variables_set" id="reset_freq_1">
+            <field name="VAR" id="freq_digit_1">FREQ:: Digit 1 Count</field>
+            <value name="VALUE">
+              <block type="math_number" id="reset_freq_1_val">
+                <field name="NUM">0</field>
+              </block>
+            </value>
+            <next>
+              <block type="variables_set" id="reset_freq_2">
+                <field name="VAR" id="freq_digit_2">FREQ:: Digit 2 Count</field>
+                <value name="VALUE">
+                  <block type="math_number" id="reset_freq_2_val">
+                    <field name="NUM">0</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="variables_set" id="reset_freq_3">
+                    <field name="VAR" id="freq_digit_3">FREQ:: Digit 3 Count</field>
+                    <value name="VALUE">
+                      <block type="math_number" id="reset_freq_3_val">
+                        <field name="NUM">0</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="variables_set" id="reset_freq_4">
+                        <field name="VAR" id="freq_digit_4">FREQ:: Digit 4 Count</field>
+                        <value name="VALUE">
+                          <block type="math_number" id="reset_freq_4_val">
+                            <field name="NUM">0</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="variables_set" id="reset_freq_5">
+                            <field name="VAR" id="freq_digit_5">FREQ:: Digit 5 Count</field>
+                            <value name="VALUE">
+                              <block type="math_number" id="reset_freq_5_val">
+                                <field name="NUM">0</field>
+                              </block>
+                            </value>
+                            <next>
+                              <block type="variables_set" id="reset_freq_6">
+                                <field name="VAR" id="freq_digit_6">FREQ:: Digit 6 Count</field>
+                                <value name="VALUE">
+                                  <block type="math_number" id="reset_freq_6_val">
+                                    <field name="NUM">0</field>
+                                  </block>
+                                </value>
+                                <next>
+                                  <block type="variables_set" id="reset_freq_7">
+                                    <field name="VAR" id="freq_digit_7">FREQ:: Digit 7 Count</field>
+                                    <value name="VALUE">
+                                      <block type="math_number" id="reset_freq_7_val">
+                                        <field name="NUM">0</field>
+                                      </block>
+                                    </value>
+                                    <next>
+                                      <block type="variables_set" id="reset_freq_8">
+                                        <field name="VAR" id="freq_digit_8">FREQ:: Digit 8 Count</field>
+                                        <value name="VALUE">
+                                          <block type="math_number" id="reset_freq_8_val">
+                                            <field name="NUM">0</field>
+                                          </block>
+                                        </value>
+                                        <next>
+                                          <block type="variables_set" id="reset_freq_9">
+                                            <field name="VAR" id="freq_digit_9">FREQ:: Digit 9 Count</field>
+                                            <value name="VALUE">
+                                              <block type="math_number" id="reset_freq_9_val">
+                                                <field name="NUM">0</field>
+                                              </block>
+                                            </value>
+                                            <next>
+                                              <!-- Count digit frequencies -->
+                                              <block type="controls_forEach" id="count_digit_freq">
+                                                <field name="VAR" id="pred_temp_digit">PRED:: Temp Digit</field>
+                                                <value name="LIST">
+                                                  <block type="variables_get" id="get_list_count">
+                                                    <field name="VAR" id="dp_recent_items">DP:: Recent Items (Sublist)</field>
+                                                  </block>
+                                                </value>
+                                                <statement name="DO">
+                                                  <block type="controls_switch" id="switch_digit">
+                                                    <mutation cases="10"></mutation>
+                                                    <value name="SWITCH">
+                                                      <block type="variables_get" id="switch_get_digit">
+                                                        <field name="VAR" id="pred_temp_digit">PRED:: Temp Digit</field>
+                                                      </block>
+                                                    </value>
+                                                    <statement name="CASE0">
+                                                      <block type="math_change" id="inc_freq_0">
+                                                        <field name="VAR" id="freq_digit_0">FREQ:: Digit 0 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_0">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_0">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <statement name="CASE1">
+                                                      <block type="math_change" id="inc_freq_1">
+                                                        <field name="VAR" id="freq_digit_1">FREQ:: Digit 1 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_1">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_1">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <statement name="CASE2">
+                                                      <block type="math_change" id="inc_freq_2">
+                                                        <field name="VAR" id="freq_digit_2">FREQ:: Digit 2 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_2">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_2">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <statement name="CASE3">
+                                                      <block type="math_change" id="inc_freq_3">
+                                                        <field name="VAR" id="freq_digit_3">FREQ:: Digit 3 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_3">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_3">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <statement name="CASE4">
+                                                      <block type="math_change" id="inc_freq_4">
+                                                        <field name="VAR" id="freq_digit_4">FREQ:: Digit 4 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_4">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_4">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <statement name="CASE5">
+                                                      <block type="math_change" id="inc_freq_5">
+                                                        <field name="VAR" id="freq_digit_5">FREQ:: Digit 5 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_5">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_5">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <statement name="CASE6">
+                                                      <block type="math_change" id="inc_freq_6">
+                                                        <field name="VAR" id="freq_digit_6">FREQ:: Digit 6 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_6">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_6">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <statement name="CASE7">
+                                                      <block type="math_change" id="inc_freq_7">
+                                                        <field name="VAR" id="freq_digit_7">FREQ:: Digit 7 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_7">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_7">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <statement name="CASE8">
+                                                      <block type="math_change" id="inc_freq_8">
+                                                        <field name="VAR" id="freq_digit_8">FREQ:: Digit 8 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_8">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_8">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <statement name="CASE9">
+                                                      <block type="math_change" id="inc_freq_9">
+                                                        <field name="VAR" id="freq_digit_9">FREQ:: Digit 9 Count</field>
+                                                        <value name="DELTA">
+                                                          <shadow type="math_number" id="inc_delta_9">
+                                                            <field name="NUM">1</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="controls_flow_statements" id="break_9">
+                                                            <field name="FLOW">BREAK</field>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                  </block>
+                                                </statement>
+                                              </block>
+                                            </next>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+
+  <!-- GET CURRENT STAKE FUNCTION (FIXED - Uses configurable base stake) -->
+  <block type="procedures_defreturn" id="proc_get_stake" x="1000" y="0">
+    <field name="NAME">Get Current Stake</field>
+    <comment pinned="false" h="80" w="160">Calculate current stake with martingale scaling - FIXED TO USE CONFIGURABLE BASE</comment>
+    <statement name="STACK">
+      <block type="variables_set" id="calc_stake">
+        <field name="VAR" id="fm_current_stake">FM:: Current Stake</field>
+        <value name="VALUE">
+          <block type="math_arithmetic" id="stake_calc">
+            <field name="OP">MULTIPLY</field>
+            <value name="A">
+              <shadow type="math_number" id="stake_base">
+                <field name="NUM">0.35</field>
+              </shadow>
+              <block type="variables_get" id="get_base_stake_for_calc">
+                <field name="VAR" id="fm_base_stake">FM:: Base Stake (Configurable)</field>
+              </block>
+            </value>
+            <value name="B">
+              <shadow type="math_number" id="martingale_multiplier">
+                <field name="NUM">1</field>
+              </shadow>
+              <block type="math_arithmetic" id="stake_with_martingale">
+                <field name="OP">POWER</field>
+                <value name="A">
+                  <shadow type="math_number" id="martingale_base">
+                    <field name="NUM">5</field>
+                  </shadow>
+                  <block type="variables_get" id="get_martingale_factor_for_calc">
+                    <field name="VAR" id="fm_martingale_factor">FM:: Martingale Factor</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <shadow type="math_number" id="loss_level_exp">
+                    <field name="NUM">0</field>
+                  </shadow>
+                  <block type="variables_get" id="get_loss_level">
+                    <field name="VAR" id="fm_loss_level">FM:: Loss Level Counter</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+          </block>
+        </value>
+        <next>
+          <block type="variables_set" id="constrain_stake_final">
+            <field name="VAR" id="fm_current_stake">FM:: Current Stake</field>
+            <value name="VALUE">
+              <block type="math_constrain" id="constrain_stake">
+                <field name="LOW">0.35</field>
+                <field name="HIGH">5000</field>
+                <value name="VALUE">
+                  <block type="variables_get" id="get_unconstrained_stake">
+                    <field name="VAR" id="fm_current_stake">FM:: Current Stake</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+          </block>
+        </next>
+      </block>
+    </statement>
+    <value name="RETURN">
+      <block type="variables_get" id="return_stake">
+        <field name="VAR" id="fm_current_stake">FM:: Current Stake</field>
+      </block>
+    </value>
+  </block>
+
+  <!-- GET NEXT PREDICTION FUNCTION (FIXED) -->
+  <block type="procedures_defreturn" id="proc_get_prediction" x="1000" y="250">
+    <field name="NAME">Get Next Prediction</field>
+    <comment pinned="false" h="80" w="160">Returns predicted digit based on highest frequency - FIXED</comment>
+    <statement name="STACK">
+      <block type="variables_set" id="init_prediction_vars">
+        <field name="VAR" id="pred_next_digit">PRED:: Next Prediction</field>
+        <value name="VALUE">
+          <block type="math_number" id="pred_init_digit">
+            <field name="NUM">0</field>
+          </block>
+        </value>
+        <next>
+          <block type="variables_set" id="init_max_freq">
+            <field name="VAR" id="pred_max_freq">PRED:: Max Frequency</field>
+            <value name="VALUE">
+              <block type="math_number" id="pred_init_max">
+                <field name="NUM">0</field>
+              </block>
+            </value>
+            <next>
+              <block type="controls_forEach" id="loop_find_max">
+                <field name="VAR" id="pred_current_index">PRED:: Current Index</field>
+                <value name="LIST">
+                  <block type="lists_create_with" id="digits_0_to_9">
+                    <mutation items="10"></mutation>
+                    <value name="ADD0">
+                      <block type="math_number" id="digit_0">
+                        <field name="NUM">0</field>
+                      </block>
+                    </value>
+                    <value name="ADD1">
+                      <block type="math_number" id="digit_1">
+                        <field name="NUM">1</field>
+                      </block>
+                    </value>
+                    <value name="ADD2">
+                      <block type="math_number" id="digit_2">
+                        <field name="NUM">2</field>
+                      </block>
+                    </value>
+                    <value name="ADD3">
+                      <block type="math_number" id="digit_3">
+                        <field name="NUM">3</field>
+                      </block>
+                    </value>
+                    <value name="ADD4">
+                      <block type="math_number" id="digit_4">
+                        <field name="NUM">4</field>
+                      </block>
+                    </value>
+                    <value name="ADD5">
+                      <block type="math_number" id="digit_5">
+                        <field name="NUM">5</field>
+                      </block>
+                    </value>
+                    <value name="ADD6">
+                      <block type="math_number" id="digit_6">
+                        <field name="NUM">6</field>
+                      </block>
+                    </value>
+                    <value name="ADD7">
+                      <block type="math_number" id="digit_7">
+                        <field name="NUM">7</field>
+                      </block>
+                    </value>
+                    <value name="ADD8">
+                      <block type="math_number" id="digit_8">
+                        <field name="NUM">8</field>
+                      </block>
+                    </value>
+                    <value name="ADD9">
+                      <block type="math_number" id="digit_9">
+                        <field name="NUM">9</field>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+                <statement name="DO">
+                  <block type="variables_set" id="get_freq_for_digit">
+                    <field name="VAR" id="pred_temp_freq">PRED:: Temp Frequency</field>
+                    <value name="VALUE">
+                      <block type="procedures_callreturn" id="call_get_freq">
+                        <mutation name="Get Digit Frequency">
+                          <arg name="Digit"></arg>
+                        </mutation>
+                        <value name="ARG0">
+                          <block type="variables_get" id="pass_current_idx">
+                            <field name="VAR" id="pred_current_index">PRED:: Current Index</field>
+                          </block>
+                        </value>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="controls_if" id="check_new_max">
+                        <value name="IF0">
+                          <block type="logic_compare" id="is_new_max">
+                            <field name="OP">GT</field>
+                            <value name="A">
+                              <block type="variables_get" id="get_temp_freq_val">
+                                <field name="VAR" id="pred_temp_freq">PRED:: Temp Frequency</field>
+                              </block>
+                            </value>
+                            <value name="B">
+                              <block type="variables_get" id="compare_to_max">
+                                <field name="VAR" id="pred_max_freq">PRED:: Max Frequency</field>
+                              </block>
+                            </value>
+                          </block>
+                        </value>
+                        <statement name="DO0">
+                          <block type="variables_set" id="update_max_freq">
+                            <field name="VAR" id="pred_max_freq">PRED:: Max Frequency</field>
+                            <value name="VALUE">
+                              <block type="variables_get" id="set_new_max">
+                                <field name="VAR" id="pred_temp_freq">PRED:: Temp Frequency</field>
+                              </block>
+                            </value>
+                            <next>
+                              <block type="variables_set" id="update_prediction">
+                                <field name="VAR" id="pred_next_digit">PRED:: Next Prediction</field>
+                                <value name="VALUE">
+                                  <block type="variables_get" id="set_pred_digit">
+                                    <field name="VAR" id="pred_current_index">PRED:: Current Index</field>
+                                  </block>
+                                </value>
+                              </block>
+                            </next>
+                          </block>
+                        </statement>
+                      </block>
+                    </next>
+                  </block>
+                </statement>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+    <value name="RETURN">
+      <block type="variables_get" id="return_prediction">
+        <field name="VAR" id="pred_next_digit">PRED:: Next Prediction</field>
+      </block>
+    </value>
+  </block>
+
+  <!-- GET DIGIT FREQUENCY FUNCTION (FIXED) -->
+  <block type="procedures_defreturn" id="proc_get_digit_freq" x="1500" y="0">
+    <mutation>
+      <arg name="Digit" varid="pred_temp_digit"></arg>
+    </mutation>
+    <field name="NAME">Get Digit Frequency</field>
+    <comment pinned="false" h="80" w="160">Returns frequency count for specified digit - FIXED</comment>
+    <statement name="STACK">
+      <block type="controls_switch" id="switch_return_freq">
+        <mutation cases="10"></mutation>
+        <value name="SWITCH">
+          <block type="variables_get" id="switch_get_freq_digit">
+            <field name="VAR" id="pred_temp_digit">PRED:: Temp Digit</field>
+          </block>
+        </value>
+        <statement name="CASE0">
+          <block type="controls_flow_statements" id="flow_case_0">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+        <statement name="CASE1">
+          <block type="controls_flow_statements" id="flow_case_1">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+        <statement name="CASE2">
+          <block type="controls_flow_statements" id="flow_case_2">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+        <statement name="CASE3">
+          <block type="controls_flow_statements" id="flow_case_3">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+        <statement name="CASE4">
+          <block type="controls_flow_statements" id="flow_case_4">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+        <statement name="CASE5">
+          <block type="controls_flow_statements" id="flow_case_5">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+        <statement name="CASE6">
+          <block type="controls_flow_statements" id="flow_case_6">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+        <statement name="CASE7">
+          <block type="controls_flow_statements" id="flow_case_7">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+        <statement name="CASE8">
+          <block type="controls_flow_statements" id="flow_case_8">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+        <statement name="CASE9">
+          <block type="controls_flow_statements" id="flow_case_9">
+            <field name="FLOW">BREAK</field>
+          </block>
+        </statement>
+      </block>
+    </statement>
+    <value name="RETURN">
+      <block type="variables_get" id="return_freq_default">
+        <field name="VAR" id="freq_digit_0">FREQ:: Digit 0 Count</field>
+      </block>
+    </value>
+  </block>
+
+  <!-- CALCULATE CONFIDENCE SCORE FUNCTION -->
+  <block type="procedures_defreturn" id="proc_calc_confidence" x="1500" y="250">
+    <mutation>
+      <arg name="Total Samples" varid="dp_list_length"></arg>
+      <arg name="Digit Frequency" varid="pred_temp_freq"></arg>
+    </mutation>
+    <field name="NAME">Calculate Confidence Score</field>
+    <comment pinned="false" h="80" w="160">Calculates confidence percentage (0-100) for prediction</comment>
+    <statement name="STACK">
+      <block type="variables_set" id="calc_confidence">
+        <field name="VAR" id="pred_confidence">PRED:: Confidence Score</field>
+        <value name="VALUE">
+          <block type="math_arithmetic" id="confidence_formula">
+            <field name="OP">MULTIPLY</field>
+            <value name="A">
+              <shadow type="math_number" id="conf_mult_base">
+                <field name="NUM">1</field>
+              </shadow>
+              <block type="math_arithmetic" id="conf_divide">
+                <field name="OP">DIVIDE</field>
+                <value name="A">
+                  <shadow type="math_number" id="conf_numerator">
+                    <field name="NUM">1</field>
+                  </shadow>
+                  <block type="variables_get" id="conf_get_freq">
+                    <field name="VAR" id="pred_temp_freq">PRED:: Temp Frequency</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <shadow type="math_number" id="conf_denominator">
+                    <field name="NUM">1</field>
+                  </shadow>
+                  <block type="variables_get" id="conf_get_total">
+                    <field name="VAR" id="dp_list_length">DP:: List Length</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <value name="B">
+              <shadow type="math_number" id="conf_multiply_100">
+                <field name="NUM">100</field>
+              </shadow>
+            </value>
+          </block>
+        </value>
+      </block>
+    </statement>
+    <value name="RETURN">
+      <block type="math_round" id="conf_round_result">
+        <field name="OP">ROUND</field>
+        <value name="NUM">
+          <shadow type="math_number" id="conf_round_decimals">
+            <field name="NUM">2</field>
+          </shadow>
+          <block type="variables_get" id="conf_return_value">
+            <field name="VAR" id="pred_confidence">PRED:: Confidence Score</field>
+          </block>
+        </value>
+      </block>
+    </value>
+  </block>
+
+</xml>
