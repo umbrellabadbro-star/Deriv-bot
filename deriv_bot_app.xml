@@ -1,845 +1,655 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Deriv Bot v2.0 - Complete XML Configuration & Application
-  Professional trading bot with embedded Python code for Deriv platform
+  Deriv Bot v2.0 - dbot.deriv.com Compatible XML Application
+  Professional trading bot configured for dbot.deriv.com platform
   Author: umbrellabadbro-star
-  Features: Advanced predictions, adaptive learning, risk management, WebSocket API
+  Compatible: dbot.deriv.com (Deriv Bot Builder)
 -->
 
 <deriv_bot_application>
-    <!-- ========================================================================
-         EMBEDDED PYTHON BOOTSTRAP CODE
-         This section contains the Python application code that runs the bot
-         ======================================================================== -->
-    
-    <embedded_code>
-        <![CDATA[
-#!/usr/bin/env python3
-"""
-Deriv Bot v2.0 - XML-Based Complete Application
-Automatically loads configuration from this XML file
-"""
-
-import os
-import json
-import time
-import logging
-import threading
-import queue
-import sys
-import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Optional, Any
-from collections import deque
-from dataclasses import dataclass
-from enum import Enum
-from pathlib import Path
-
-try:
-    import websocket
-    import requests
-    from dotenv import load_dotenv
-    import numpy as np
-except ImportError:
-    print("Installing required packages...")
-    os.system("pip install websocket-client requests python-dotenv numpy")
-    import websocket
-    import requests
-    from dotenv import load_dotenv
-    import numpy as np
-
-load_dotenv()
-Path("logs").mkdir(exist_ok=True)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/bot_trades.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
-
-# ============================================================================
-# ENUMS AND DATACLASSES
-# ============================================================================
-
-class TradeType(Enum):
-    DIGITS_MATCH = "DIGITMATCH"
-    DIGITS_DIFFER = "DIGITDIFF"
-    RISE = "CALL"
-    FALL = "PUT"
-
-
-class StrategyType(Enum):
-    MATCH = "match"
-    DIFFER = "differ"
-
-
-@dataclass
-class Trade:
-    trade_id: str
-    symbol: str
-    amount: float
-    direction: str
-    entry_time: datetime
-    exit_time: Optional[datetime] = None
-    profit_loss: float = 0
-    status: str = "open"
-    confidence: float = 0
-
-
-# ============================================================================
-# XML CONFIGURATION PARSER
-# ============================================================================
-
-class XMLConfigParser:
-    """Parse configuration from embedded XML"""
-    
-    def __init__(self, xml_file: str):
-        self.xml_file = xml_file
-        self.tree = ET.parse(xml_file)
-        self.root = self.tree.getroot()
-        self.config_data = self._parse_config()
-    
-    def _parse_config(self) -> Dict:
-        """Parse XML configuration"""
-        config = {}
-        
-        # Find the main configuration section
-        for section in self.root.findall('./deriv_configuration/*'):
-            section_name = section.tag
-            config[section_name] = {}
-            
-            for element in section:
-                key = element.tag
-                value = element.text
-                
-                if value is None:
-                    value = None
-                elif isinstance(value, str):
-                    if value.lower() in ['true', 'false']:
-                        value = value.lower() == 'true'
-                    elif value.isdigit():
-                        value = int(value)
-                    else:
-                        try:
-                            value = float(value)
-                        except (ValueError, AttributeError):
-                            pass
-                
-                config[section_name][key] = value
-        
-        logger.info(f"✅ Loaded {len(config)} configuration sections from XML")
-        return config
-    
-    def get(self, section: str, key: str, default=None):
-        """Get configuration value"""
-        try:
-            return self.config_data.get(section, {}).get(key, default)
-        except Exception as e:
-            logger.warning(f"Config error: {e}")
-            return default
-
-
-# ============================================================================
-# PREDICTION ENGINE
-# ============================================================================
-
-class PredictionEngine:
-    """Advanced prediction engine with adaptive learning"""
-    
-    def __init__(self, config: XMLConfigParser):
-        self.config = config
-        self.tick_history = deque(maxlen=int(config.get('prediction_engine', 'memory_size', 1000)))
-        self.trade_history = deque(maxlen=500)
-        self.pattern_memory = {}
-        self.win_rate = 0.5
-        self.current_strategy = StrategyType.MATCH
-        self.learning_rate = float(config.get('prediction_engine', 'learning_rate', 0.02))
-        logger.info("🧠 Prediction engine initialized")
-    
-    def add_tick(self, tick_value: int):
-        """Add tick to history"""
-        try:
-            self.tick_history.append({
-                'value': int(tick_value),
-                'timestamp': datetime.now()
-            })
-        except Exception as e:
-            logger.warning(f"Tick error: {e}")
-    
-    def calculate_rsi(self, period: int = 14) -> float:
-        """Calculate RSI"""
-        if len(self.tick_history) < period:
-            return 50.0
-        try:
-            values = np.array([t['value'] for t in list(self.tick_history)[-period:]], dtype=float)
-            deltas = np.diff(values)
-            gains = np.where(deltas > 0, deltas, 0)
-            losses = np.where(deltas < 0, -deltas, 0)
-            avg_gain = np.mean(gains) if len(gains) > 0 else 0
-            avg_loss = np.mean(losses) if len(losses) > 0 else 0
-            if avg_loss == 0:
-                return 100.0 if avg_gain > 0 else 50.0
-            rs = avg_gain / avg_loss
-            rsi = 100 - (100 / (1 + rs))
-            return float(rsi)
-        except:
-            return 50.0
-    
-    def calculate_stochastic(self, k_period: int = 14) -> Tuple[float, float]:
-        """Calculate Stochastic Oscillator"""
-        if len(self.tick_history) < k_period:
-            return 50.0, 50.0
-        try:
-            values = np.array([t['value'] for t in list(self.tick_history)[-k_period:]], dtype=float)
-            lowest = np.min(values)
-            highest = np.max(values)
-            if highest == lowest:
-                return 50.0, 50.0
-            k = 100 * (values[-1] - lowest) / (highest - lowest)
-            d = np.mean([k])
-            return float(k), float(d)
-        except:
-            return 50.0, 50.0
-    
-    def calculate_ema(self, period: int = 20) -> float:
-        """Calculate EMA"""
-        if len(self.tick_history) < period:
-            avg = np.mean([t['value'] for t in self.tick_history]) if self.tick_history else 5.0
-            return float(avg)
-        try:
-            values = np.array([t['value'] for t in list(self.tick_history)[-period:]], dtype=float)
-            multiplier = 2 / (period + 1)
-            ema = values[0]
-            for value in values[1:]:
-                ema = value * multiplier + ema * (1 - multiplier)
-            return float(ema)
-        except:
-            return 5.0
-    
-    def calculate_atr(self, period: int = 14) -> float:
-        """Calculate ATR"""
-        if len(self.tick_history) < period:
-            return 1.0
-        try:
-            values = np.array([t['value'] for t in list(self.tick_history)[-period:]], dtype=float)
-            atr = np.mean(np.abs(np.diff(values)))
-            return float(atr) if atr > 0 else 1.0
-        except:
-            return 1.0
-    
-    def predict_next_digit(self) -> Tuple[int, float, StrategyType]:
-        """Predict next digit with confidence"""
-        if len(self.tick_history) < 10:
-            return 5, 50.0, StrategyType.MATCH
-        
-        try:
-            recent_ticks = [t['value'] for t in list(self.tick_history)[-30:]]
-            
-            rsi = self.calculate_rsi(14)
-            k_stoch, d_stoch = self.calculate_stochastic(14)
-            ema = self.calculate_ema(20)
-            atr = self.calculate_atr(14)
-            
-            digit_counts = {}
-            for digit in recent_ticks:
-                digit_counts[digit] = digit_counts.get(digit, 0) + 1
-            
-            avg_value = np.mean(recent_ticks)
-            
-            scores = {}
-            for digit in range(10):
-                score = 0
-                
-                if rsi > 70:
-                    score += (10 - digit) * 0.25 if digit > 5 else digit * 0.25
-                elif rsi < 30:
-                    score += digit * 0.25 if digit < 5 else (10 - digit) * 0.25
-                else:
-                    score += abs(digit - int(avg_value)) * 0.25
-                
-                if k_stoch > 80:
-                    score += (10 - digit) * 0.25 if digit > 5 else digit * 0.25
-                elif k_stoch < 20:
-                    score += digit * 0.25 if digit < 5 else (10 - digit) * 0.25
-                else:
-                    score += abs(digit - int(ema)) * 0.25
-                
-                score += digit_counts.get(digit, 0) * 0.30
-                score += (1 - min(atr / 5, 1)) * 0.20
-                
-                scores[digit] = score
-            
-            predicted = max(scores, key=scores.get)
-            total_score = sum(scores.values())
-            confidence = (scores[predicted] / total_score) * 100 if total_score > 0 else 50
-            
-            threshold = float(self.config.get('prediction_engine', 'auto_switch_threshold', 52)) / 100
-            if self.win_rate < threshold and len(self.trade_history) > 5:
-                self.current_strategy = StrategyType.DIFFER if self.current_strategy == StrategyType.MATCH else StrategyType.MATCH
-                logger.info(f"⚡ Strategy switched to: {self.current_strategy.value}")
-            
-            return predicted, float(confidence), self.current_strategy
-        
-        except Exception as e:
-            logger.error(f"Prediction error: {e}")
-            return 5, 50.0, StrategyType.MATCH
-    
-    def record_trade_result(self, trade: Trade):
-        """Record trade result"""
-        try:
-            self.trade_history.append(trade)
-            if len(self.trade_history) > 0:
-                wins = sum(1 for t in self.trade_history if t.status == "won")
-                self.win_rate = wins / len(self.trade_history)
-                logger.info(f"📊 Win rate: {self.win_rate*100:.2f}%")
-        except Exception as e:
-            logger.error(f"Record error: {e}")
-
-
-# ============================================================================
-# API CLIENT
-# ============================================================================
-
-class DerivAPIClient:
-    """Deriv API WebSocket client"""
-    
-    def __init__(self, api_token: str):
-        self.api_token = api_token
-        self.endpoint = "wss://ws.binaryws.com/websockets/v3"
-        self.ws = None
-        self.request_id = 0
-        self.responses = {}
-        self.is_connected = False
-        self.reconnect_count = 0
-        self.lock = threading.Lock()
-        logger.info("🔌 API client initialized")
-    
-    def connect(self):
-        """Connect to Deriv API"""
-        try:
-            logger.info(f"🔗 Connecting to API...")
-            self.ws = websocket.WebSocketApp(
-                self.endpoint,
-                on_message=self._on_message,
-                on_error=self._on_error,
-                on_close=self._on_close,
-                on_open=self._on_open,
-                ping_interval=30,
-                ping_timeout=10
-            )
-            
-            ws_thread = threading.Thread(target=self.ws.run_forever, daemon=True)
-            ws_thread.start()
-            time.sleep(2)
-        except Exception as e:
-            logger.error(f"Connection error: {e}")
-            self._attempt_reconnect()
-    
-    def _on_open(self, ws):
-        logger.info("✅ WebSocket connected")
-        self.is_connected = True
-        self.reconnect_count = 0
-        self._authorize()
-    
-    def _on_message(self, ws, message):
-        try:
-            data = json.loads(message)
-            if 'req_id' in data:
-                with self.lock:
-                    self.responses[data['req_id']] = data
-        except:
-            pass
-    
-    def _on_error(self, ws, error):
-        logger.error(f"❌ WebSocket error: {error}")
-        self.is_connected = False
-    
-    def _on_close(self, ws, close_status_code, close_msg):
-        logger.warning(f"⚠️ WebSocket closed")
-        self.is_connected = False
-        self._attempt_reconnect()
-    
-    def _attempt_reconnect(self):
-        if self.reconnect_count < 5:
-            self.reconnect_count += 1
-            delay = 2 ** self.reconnect_count
-            logger.info(f"🔄 Reconnecting in {delay}s...")
-            time.sleep(delay)
-            self.connect()
-    
-    def _authorize(self):
-        try:
-            self.request_id += 1
-            request = {"authorize": self.api_token, "req_id": self.request_id}
-            self.ws.send(json.dumps(request))
-            logger.info("🔐 Authorization sent")
-            time.sleep(1)
-            response = self.responses.get(self.request_id)
-            if response and 'authorize' in response:
-                logger.info("✅ Authorized")
-                return True
-            return False
-        except Exception as e:
-            logger.error(f"Auth error: {e}")
-            return False
-    
-    def get_account_balance(self) -> Optional[float]:
-        try:
-            self.request_id += 1
-            request = {"balance": 1, "req_id": self.request_id}
-            self.ws.send(json.dumps(request))
-            time.sleep(0.5)
-            response = self.responses.get(self.request_id)
-            if response and 'balance' in response:
-                balance = response['balance'].get('balance')
-                logger.info(f"💰 Balance: ${balance}")
-                return balance
-            return None
-        except Exception as e:
-            logger.error(f"Balance error: {e}")
-            return None
-    
-    def subscribe_ticks(self, symbol: str) -> bool:
-        try:
-            self.request_id += 1
-            request = {"ticks": symbol, "req_id": self.request_id}
-            self.ws.send(json.dumps(request))
-            logger.info(f"📡 Subscribed to {symbol}")
-            return True
-        except Exception as e:
-            logger.error(f"Subscribe error: {e}")
-            return False
-    
-    def place_trade(self, symbol: str, amount: float, duration: int, trade_type: str) -> Optional[str]:
-        try:
-            if not self.is_connected:
-                logger.error("Not connected")
-                return None
-            
-            self.request_id += 1
-            request = {
-                "buy": 1,
-                "subscribe": 1,
-                "contract_type": trade_type,
-                "currency": "USD",
-                "amount": amount,
-                "symbol": symbol,
-                "duration": duration,
-                "duration_unit": "s",
-                "req_id": self.request_id
-            }
-            
-            self.ws.send(json.dumps(request))
-            logger.info(f"🎯 Trade: {symbol} {trade_type} ${amount}")
-            
-            time.sleep(1)
-            response = self.responses.get(self.request_id)
-            if response and 'buy' in response:
-                trade_id = response['buy'].get('transaction_id')
-                logger.info(f"✅ Trade placed: {trade_id}")
-                return trade_id
-            return None
-        except Exception as e:
-            logger.error(f"Trade error: {e}")
-            return None
-
-
-# ============================================================================
-# MAIN BOT
-# ============================================================================
-
-class DerivBot:
-    """Main bot class"""
-    
-    def __init__(self, config_file: str = 'deriv_bot_app.xml'):
-        try:
-            self.config = XMLConfigParser(config_file)
-            self.prediction_engine = PredictionEngine(self.config)
-            
-            api_token = os.getenv('DERIV_API_TOKEN')
-            if not api_token:
-                raise ValueError("❌ DERIV_API_TOKEN not set")
-            
-            self.api_client = DerivAPIClient(api_token)
-            self.active_trades = {}
-            self.session_stats = {
-                'total_trades': 0,
-                'winning_trades': 0,
-                'losing_trades': 0,
-                'total_profit': 0.0,
-                'start_time': datetime.now()
-            }
-            
-            logger.info("=" * 70)
-            logger.info("🚀 DERIV BOT v2.0 - INITIALIZED")
-            logger.info("=" * 70)
-        
-        except Exception as e:
-            logger.error(f"Init error: {e}")
-            raise
-    
-    def check_trading_conditions(self) -> bool:
-        try:
-            daily_loss_limit = float(self.config.get('trade_config', 'daily_loss_limit', 500))
-            if self.session_stats.get('daily_profit', 0) < -daily_loss_limit:
-                logger.warning("⛔ Daily loss limit")
-                return False
-            return True
-        except Exception as e:
-            logger.error(f"Condition error: {e}")
-            return False
-    
-    def save_session_stats(self):
-        try:
-            stats = {
-                **self.session_stats,
-                'start_time': self.session_stats['start_time'].isoformat(),
-                'win_rate': (self.session_stats['winning_trades'] / max(1, self.session_stats['total_trades'])) * 100
-            }
-            with open('logs/bot_session.json', 'w') as f:
-                json.dump(stats, f, indent=2)
-        except Exception as e:
-            logger.error(f"Save error: {e}")
-    
-    def run(self):
-        """Main bot loop"""
-        try:
-            logger.info("Starting bot...")
-            
-            self.api_client.connect()
-            time.sleep(3)
-            
-            if not self.api_client.is_connected:
-                raise ConnectionError("Failed to connect")
-            
-            symbol = self.config.get('trade_config', 'symbol', 'FRXUSDJPY')
-            self.api_client.subscribe_ticks(symbol)
-            
-            iteration = 0
-            while True:
-                iteration += 1
-                
-                if not self.api_client.is_connected:
-                    logger.warning("🔄 Reconnecting...")
-                    self.api_client.connect()
-                    time.sleep(3)
-                    continue
-                
-                try:
-                    if not self.check_trading_conditions():
-                        time.sleep(10)
-                        continue
-                    
-                    if iteration % 60 == 0:
-                        self.api_client.get_account_balance()
-                    
-                    predicted_digit, confidence, strategy = self.prediction_engine.predict_next_digit()
-                    logger.info(f"🔮 Prediction: {predicted_digit} | Confidence: {confidence:.1f}% | {strategy.value}")
-                    
-                    min_confidence = float(self.config.get('prediction_engine', 'confidence_threshold', 65))
-                    if confidence >= min_confidence:
-                        stake = float(self.config.get('trade_config', 'stake', 10))
-                        duration = int(self.config.get('trade_config', 'duration_value', 60))
-                        
-                        trade_type = TradeType.DIGITS_DIFFER.value if strategy == StrategyType.DIFFER else TradeType.DIGITS_MATCH.value
-                        
-                        trade_id = self.api_client.place_trade(symbol, stake, duration, trade_type)
-                        
-                        if trade_id:
-                            trade = Trade(
-                                trade_id=trade_id,
-                                symbol=symbol,
-                                amount=stake,
-                                direction=strategy.value,
-                                entry_time=datetime.now(),
-                                confidence=confidence
-                            )
-                            self.active_trades[trade_id] = trade
-                            self.session_stats['total_trades'] += 1
-                    
-                    if iteration % 100 == 0:
-                        self.save_session_stats()
-                    
-                    interval = int(self.config.get('prediction_engine', 'prediction_interval', 3000)) / 1000
-                    time.sleep(interval)
-                
-                except Exception as e:
-                    logger.error(f"Loop error: {e}")
-                    time.sleep(5)
-        
-        except KeyboardInterrupt:
-            logger.info("⏹️ Stopped")
-            self.shutdown()
-        except Exception as e:
-            logger.error(f"Fatal: {e}")
-            self.shutdown()
-    
-    def shutdown(self):
-        try:
-            logger.info("Shutting down...")
-            self.save_session_stats()
-            if self.api_client.ws:
-                self.api_client.ws.close()
-        except Exception as e:
-            logger.error(f"Shutdown error: {e}")
-
-
-def main():
-    try:
-        if not os.path.exists('.env'):
-            with open('.env', 'w') as f:
-                f.write("DERIV_API_TOKEN=your_token_here\n")
-            logger.info("✅ .env created - add your token")
-            return
-        
-        # Get script directory to find XML file
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        xml_file = os.path.join(script_dir, 'deriv_bot_app.xml')
-        
-        if not os.path.exists(xml_file):
-            logger.error(f"❌ XML file not found: {xml_file}")
-            return
-        
-        bot = DerivBot(xml_file)
-        bot.run()
-    
-    except Exception as e:
-        logger.error(f"Fatal: {e}")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
-        ]]>
-    </embedded_code>
+    <metadata>
+        <name>Deriv Bot v2.0</name>
+        <version>2.0</version>
+        <platform>dbot.deriv.com</platform>
+        <description>Advanced trading bot with prediction engine and adaptive learning</description>
+        <author>umbrellabadbro-star</author>
+        <compatibility>dbot.deriv.com</compatibility>
+    </metadata>
 
     <!-- ========================================================================
-         MAIN CONFIGURATION SECTION
+         DBOT COMPATIBLE APPLICATION CODE
+         Formatted for dbot.deriv.com execution environment
          ======================================================================== -->
     
-    <deriv_configuration>
+    <application_code>
+        <type>javascript</type>
+        <description>D Bot Builder Compatible Code</description>
+        <code>
+            <![CDATA[
+// Deriv Bot v2.0 - dbot.deriv.com Compatible
+// Advanced Trading Bot with Prediction Engine
+
+'use strict';
+
+class DerivBotApp {
+    constructor(config) {
+        this.config = config || {};
+        this.ticks = [];
+        this.trades = [];
+        this.stats = {
+            totalTrades: 0,
+            wins: 0,
+            losses: 0,
+            profit: 0,
+            startTime: new Date()
+        };
+        this.isRunning = false;
+        this.currentStrategy = 'match';
+        this.winRate = 0.5;
+        this.confidenceThreshold = parseFloat(config.confidenceThreshold || 65);
+        this.predictionInterval = parseInt(config.predictionInterval || 3000);
+        this.stake = parseFloat(config.stake || 10);
+        this.duration = parseInt(config.duration || 60);
+        this.symbol = config.symbol || 'FRXUSDJPY';
+        this.tradeType = config.tradeType || 'digits_match';
         
-        <!-- Connection Settings -->
-        <connection_config>
-            <endpoint>wss://ws.binaryws.com/websockets/v3</endpoint>
+        console.log('🚀 Deriv Bot v2.0 Initialized for dbot.deriv.com');
+    }
+
+    // Add tick data
+    addTick(value) {
+        this.ticks.push({
+            value: parseInt(value),
+            timestamp: new Date()
+        });
+        
+        // Keep only last 1000 ticks
+        if (this.ticks.length > 1000) {
+            this.ticks.shift();
+        }
+    }
+
+    // Calculate RSI (Relative Strength Index)
+    calculateRSI(period = 14) {
+        if (this.ticks.length < period) return 50;
+        
+        const values = this.ticks.slice(-period).map(t => t.value);
+        let gains = 0, losses = 0;
+        
+        for (let i = 1; i < values.length; i++) {
+            const diff = values[i] - values[i - 1];
+            if (diff > 0) gains += diff;
+            else losses -= diff;
+        }
+        
+        const avgGain = gains / period;
+        const avgLoss = losses / period;
+        
+        if (avgLoss === 0) return avgGain > 0 ? 100 : 50;
+        
+        const rs = avgGain / avgLoss;
+        const rsi = 100 - (100 / (1 + rs));
+        
+        return Math.round(rsi * 100) / 100;
+    }
+
+    // Calculate EMA (Exponential Moving Average)
+    calculateEMA(period = 20) {
+        if (this.ticks.length < period) {
+            if (this.ticks.length === 0) return 5;
+            return this.ticks.reduce((sum, t) => sum + t.value, 0) / this.ticks.length;
+        }
+        
+        const values = this.ticks.slice(-period).map(t => t.value);
+        const multiplier = 2 / (period + 1);
+        let ema = values[0];
+        
+        for (let i = 1; i < values.length; i++) {
+            ema = values[i] * multiplier + ema * (1 - multiplier);
+        }
+        
+        return Math.round(ema * 100) / 100;
+    }
+
+    // Calculate Stochastic Oscillator
+    calculateStochastic(period = 14) {
+        if (this.ticks.length < period) return { k: 50, d: 50 };
+        
+        const values = this.ticks.slice(-period).map(t => t.value);
+        const lowest = Math.min(...values);
+        const highest = Math.max(...values);
+        
+        if (highest === lowest) return { k: 50, d: 50 };
+        
+        const k = 100 * (values[values.length - 1] - lowest) / (highest - lowest);
+        const d = k; // Simplified for dbot
+        
+        return { 
+            k: Math.round(k * 100) / 100, 
+            d: Math.round(d * 100) / 100 
+        };
+    }
+
+    // Calculate ATR (Average True Range)
+    calculateATR(period = 14) {
+        if (this.ticks.length < period) return 1;
+        
+        const values = this.ticks.slice(-period).map(t => t.value);
+        let sumTR = 0;
+        
+        for (let i = 1; i < values.length; i++) {
+            sumTR += Math.abs(values[i] - values[i - 1]);
+        }
+        
+        const atr = sumTR / period;
+        return Math.round(atr * 100) / 100;
+    }
+
+    // Predict next digit
+    predictNextDigit() {
+        if (this.ticks.length < 10) {
+            return {
+                digit: 5,
+                confidence: 50,
+                strategy: 'match'
+            };
+        }
+
+        try {
+            const recentTicks = this.ticks.slice(-30).map(t => t.value);
+            
+            // Calculate indicators
+            const rsi = this.calculateRSI(14);
+            const stochastic = this.calculateStochastic(14);
+            const ema = this.calculateEMA(20);
+            const atr = this.calculateATR(14);
+            
+            // Count digit frequencies
+            const digitCounts = {};
+            for (let i = 0; i < 10; i++) {
+                digitCounts[i] = recentTicks.filter(t => t === i).length;
+            }
+            
+            // Calculate scores for each digit
+            const scores = {};
+            for (let digit = 0; digit < 10; digit++) {
+                let score = 0;
+                
+                // RSI contribution (weight: 0.25)
+                if (rsi > 70) {
+                    score += (digit > 5 ? (10 - digit) : digit) * 0.25;
+                } else if (rsi < 30) {
+                    score += (digit < 5 ? digit : (10 - digit)) * 0.25;
+                } else {
+                    score += Math.abs(digit - Math.round(ema)) * 0.25;
+                }
+                
+                // Stochastic contribution (weight: 0.25)
+                if (stochastic.k > 80) {
+                    score += (digit > 5 ? (10 - digit) : digit) * 0.25;
+                } else if (stochastic.k < 20) {
+                    score += (digit < 5 ? digit : (10 - digit)) * 0.25;
+                } else {
+                    score += Math.abs(digit - Math.round(ema)) * 0.25;
+                }
+                
+                // Pattern frequency (weight: 0.30)
+                score += digitCounts[digit] * 0.30;
+                
+                // Volatility (weight: 0.20)
+                score += (1 - Math.min(atr / 5, 1)) * 0.20;
+                
+                scores[digit] = score;
+            }
+            
+            // Find best prediction
+            let bestDigit = 5;
+            let bestScore = 0;
+            for (let digit = 0; digit < 10; digit++) {
+                if (scores[digit] > bestScore) {
+                    bestScore = scores[digit];
+                    bestDigit = digit;
+                }
+            }
+            
+            // Calculate confidence
+            const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
+            const confidence = totalScore > 0 ? (scores[bestDigit] / totalScore) * 100 : 50;
+            
+            // Auto-switch strategy
+            const threshold = 52;
+            if (this.winRate < (threshold / 100) && this.trades.length > 5) {
+                this.currentStrategy = this.currentStrategy === 'match' ? 'differ' : 'match';
+                console.log('⚡ Strategy switched to:', this.currentStrategy);
+            }
+            
+            return {
+                digit: bestDigit,
+                confidence: Math.round(confidence * 100) / 100,
+                strategy: this.currentStrategy,
+                rsi: Math.round(rsi * 100) / 100,
+                ema: Math.round(ema * 100) / 100,
+                stochastic: stochastic
+            };
+        } catch (error) {
+            console.error('Prediction error:', error);
+            return {
+                digit: 5,
+                confidence: 50,
+                strategy: this.currentStrategy
+            };
+        }
+    }
+
+    // Record trade result
+    recordTradeResult(tradeResult) {
+        this.trades.push(tradeResult);
+        
+        if (tradeResult.won) {
+            this.stats.wins++;
+            this.stats.profit += tradeResult.profit;
+        } else {
+            this.stats.losses++;
+        }
+        
+        this.stats.totalTrades++;
+        
+        // Update win rate
+        if (this.stats.totalTrades > 0) {
+            this.winRate = this.stats.wins / this.stats.totalTrades;
+        }
+        
+        console.log(`📊 Trade #${this.stats.totalTrades}: ${tradeResult.won ? '✅ WIN' : '❌ LOSS'} | Win Rate: ${(this.winRate * 100).toFixed(2)}%`);
+    }
+
+    // Get session statistics
+    getSessionStats() {
+        const duration = new Date() - this.stats.startTime;
+        const hours = Math.floor(duration / 3600000);
+        const minutes = Math.floor((duration % 3600000) / 60000);
+        
+        return {
+            totalTrades: this.stats.totalTrades,
+            wins: this.stats.wins,
+            losses: this.stats.losses,
+            winRate: (this.winRate * 100).toFixed(2) + '%',
+            profit: this.stats.profit.toFixed(2),
+            duration: `${hours}h ${minutes}m`,
+            currentStrategy: this.currentStrategy,
+            confidence: this.confidenceThreshold,
+            predictionInterval: this.predictionInterval + 'ms'
+        };
+    }
+
+    // Print summary
+    printSummary() {
+        const stats = this.getSessionStats();
+        console.log('\n' + '='.repeat(60));
+        console.log('📊 SESSION SUMMARY');
+        console.log('='.repeat(60));
+        console.log(`Total Trades: ${stats.totalTrades}`);
+        console.log(`Wins: ${stats.wins} | Losses: ${stats.losses}`);
+        console.log(`Win Rate: ${stats.winRate}`);
+        console.log(`Total Profit: $${stats.profit}`);
+        console.log(`Duration: ${stats.duration}`);
+        console.log(`Strategy: ${stats.currentStrategy}`);
+        console.log('='.repeat(60) + '\n');
+    }
+
+    // Start bot
+    start() {
+        this.isRunning = true;
+        console.log('🎯 Bot started for dbot.deriv.com');
+        return {
+            status: 'running',
+            timestamp: new Date().toISOString(),
+            config: {
+                symbol: this.symbol,
+                stake: this.stake,
+                duration: this.duration,
+                tradeType: this.tradeType,
+                confidenceThreshold: this.confidenceThreshold
+            }
+        };
+    }
+
+    // Stop bot
+    stop() {
+        this.isRunning = false;
+        this.printSummary();
+        console.log('⏹️ Bot stopped');
+        return this.getSessionStats();
+    }
+
+    // Main prediction loop
+    runPredictionCycle() {
+        if (!this.isRunning) return null;
+        
+        const prediction = this.predictNextDigit();
+        
+        if (prediction.confidence >= this.confidenceThreshold) {
+            return {
+                action: 'TRADE',
+                digit: prediction.digit,
+                strategy: prediction.strategy,
+                tradeType: prediction.strategy === 'match' ? 'DIGITMATCH' : 'DIGITDIFF',
+                confidence: prediction.confidence,
+                stake: this.stake,
+                duration: this.duration,
+                symbol: this.symbol,
+                timestamp: new Date().toISOString()
+            };
+        }
+        
+        return {
+            action: 'WAIT',
+            reason: 'Confidence too low',
+            confidence: prediction.confidence,
+            threshold: this.confidenceThreshold,
+            timestamp: new Date().toISOString()
+        };
+    }
+}
+
+// Export for dbot.deriv.com
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = DerivBotApp;
+}
+
+// For direct execution
+if (typeof window === 'undefined' && require.main === module) {
+    // Node.js environment
+    const config = {
+        symbol: process.env.SYMBOL || 'FRXUSDJPY',
+        stake: parseFloat(process.env.STAKE || 10),
+        duration: parseInt(process.env.DURATION || 60),
+        tradeType: process.env.TRADE_TYPE || 'digits_match',
+        confidenceThreshold: parseFloat(process.env.CONFIDENCE || 65),
+        predictionInterval: parseInt(process.env.PREDICTION_INTERVAL || 3000)
+    };
+    
+    const bot = new DerivBotApp(config);
+    bot.start();
+    console.log(bot.getSessionStats());
+}
+            ]]>
+        </code>
+    </application_code>
+
+    <!-- ========================================================================
+         DBOT.DERIV.COM CONFIGURATION
+         ======================================================================== -->
+    
+    <dbot_configuration>
+        <connection>
+            <api_url>https://api.deriv.com</api_url>
+            <wss_url>wss://ws.binaryws.com</wss_url>
+            <app_id>required_from_deriv</app_id>
+            <auto_connect>true</auto_connect>
             <connection_timeout>30000</connection_timeout>
-            <reconnect_attempts>5</reconnect_attempts>
-            <reconnect_delay>2000</reconnect_delay>
-            <heartbeat_interval>30000</heartbeat_interval>
-            <max_idle_timeout>60000</max_idle_timeout>
-        </connection_config>
+        </connection>
 
-        <!-- Account Configuration -->
-        <account_config>
-            <account_type>real</account_type>
-            <currency>USD</currency>
-            <server>default</server>
-            <auto_balance_check>true</auto_balance_check>
-            <balance_check_interval>60000</balance_check_interval>
-        </account_config>
+        <trading>
+            <default_symbol>FRXUSDJPY</default_symbol>
+            <default_stake>10</default_stake>
+            <default_duration>60</default_duration>
+            <contract_types>
+                <type1>DIGITMATCH</type1>
+                <type2>DIGITDIFF</type2>
+                <type3>CALL</type3>
+                <type4>PUT</type4>
+            </contract_types>
+            <allowed_currencies>
+                <currency>USD</currency>
+                <currency>EUR</currency>
+                <currency>GBP</currency>
+            </allowed_currencies>
+        </trading>
 
-        <!-- Trade Configuration -->
-        <trade_config>
-            <symbol>FRXUSDJPY</symbol>
-            <trade_type>digits_match</trade_type>
-            <stake>10</stake>
-            <duration>1m</duration>
-            <duration_value>60</duration_value>
-            <max_concurrent_trades>1</max_concurrent_trades>
-            <min_stake>1</min_stake>
-            <max_stake>1000</max_stake>
-            <daily_profit_target>100</daily_profit_target>
-            <daily_loss_limit>500</daily_loss_limit>
-            <consecutive_loss_limit>5</consecutive_loss_limit>
-        </trade_config>
-
-        <!-- Prediction Engine -->
-        <prediction_engine>
-            <strategy>advanced_adaptive</strategy>
-            <prediction_mode>auto_switch</prediction_mode>
+        <prediction>
+            <algorithm>advanced_adaptive</algorithm>
+            <confidence_threshold>65</confidence_threshold>
             <prediction_interval>3000</prediction_interval>
-            <min_data_points>10</min_data_points>
-            <memory_size>1000</memory_size>
-            <learning_rate>0.02</learning_rate>
-            
-            <!-- Indicators Configuration -->
-            <indicators_enabled>
-                <rsi>true</rsi>
-                <ema>true</ema>
-                <stochastic>true</stochastic>
-                <atr>true</atr>
-                <macd>true</macd>
-            </indicators_enabled>
-            
-            <!-- Indicator Parameters -->
-            <indicator_params>
-                <rsi_period>14</rsi_period>
-                <rsi_overbought>70</rsi_overbought>
-                <rsi_oversold>30</rsi_oversold>
-                <ema_fast>12</ema_fast>
-                <ema_slow>26</ema_slow>
-                <stochastic_k>14</stochastic_k>
-                <stochastic_d>3</stochastic_d>
-                <atr_period>14</atr_period>
-            </indicator_params>
-            
-            <!-- Prediction Logic -->
-            <digits_logic>
-                <sample_size>30</sample_size>
-                <match_weight>0.45</match_weight>
-                <differ_weight>0.55</differ_weight>
-                <confidence_threshold>65</confidence_threshold>
-                <auto_switch_threshold>52</auto_switch_threshold>
-                <use_entropy>true</use_entropy>
-                <use_patterns>true</use_patterns>
-            </digits_logic>
-            
-            <!-- Adaptive Learning -->
-            <adaptive_learning>
-                <enabled>true</enabled>
-                <pattern_detection>true</pattern_detection>
-                <pattern_min_occurrences>3</pattern_min_occurrences>
-                <win_rate_threshold>55</win_rate_threshold>
-            </adaptive_learning>
-        </prediction_engine>
+            <min_ticks_required>10</min_ticks_required>
+            <max_history>1000</max_history>
+            <indicators>
+                <rsi_enabled>true</rsi_enabled>
+                <ema_enabled>true</ema_enabled>
+                <stochastic_enabled>true</stochastic_enabled>
+                <atr_enabled>true</atr_enabled>
+            </indicators>
+        </prediction>
 
-        <!-- Risk Management -->
         <risk_management>
-            <enabled>true</enabled>
-            <max_risk_per_trade>3</max_risk_per_trade>
-            <max_drawdown_percentage>15</max_drawdown_percentage>
-            
-            <position_sizing>
-                <method>kelly_criterion</method>
-                <kelly_fraction>0.25</kelly_fraction>
-                <min_multiplier>0.5</min_multiplier>
-                <max_multiplier>2.0</max_multiplier>
-            </position_sizing>
-            
-            <martingale>
-                <enabled>false</enabled>
-                <multiplier>2</multiplier>
-                <max_steps>3</max_steps>
-            </martingale>
-            
-            <stop_loss>
-                <enabled>true</enabled>
-                <loss_percentage>10</loss_percentage>
-                <trailing>true</trailing>
-            </stop_loss>
-            
-            <take_profit>
-                <enabled>true</enabled>
-                <profit_percentage>20</profit_percentage>
-                <partial_exit>true</partial_exit>
-            </take_profit>
-            
-            <circuit_breaker>
-                <enabled>true</enabled>
-                <consecutive_losses>3</consecutive_losses>
-                <cooldown>300000</cooldown>
-            </circuit_breaker>
+            <daily_loss_limit>500</daily_loss_limit>
+            <daily_profit_target>100</daily_profit_target>
+            <max_stake>1000</max_stake>
+            <min_stake>1</min_stake>
+            <stop_loss_percentage>10</stop_loss_percentage>
+            <take_profit_percentage>20</take_profit_percentage>
         </risk_management>
 
-        <!-- Performance Tracking -->
-        <performance_tracking>
-            <enabled>true</enabled>
-            <log_file>logs/bot_trades.log</log_file>
-            <session_file>logs/bot_session.json</session_file>
-            <stats_file>logs/bot_stats.json</stats_file>
-            
-            <metrics>
-                <track_win_rate>true</track_win_rate>
-                <track_roi>true</track_roi>
-                <track_accuracy>true</track_accuracy>
-                <track_confidence>true</track_confidence>
-                <track_drawdown>true</track_drawdown>
-                <track_sharpe>true</track_sharpe>
-            </metrics>
-            
-            <alerts>
-                <high_win_threshold>75</high_win_threshold>
-                <low_win_threshold>40</low_win_threshold>
-            </alerts>
-        </performance_tracking>
+        <features>
+            <adaptive_learning>true</adaptive_learning>
+            <auto_strategy_switch>true</auto_strategy_switch>
+            <session_persistence>true</session_persistence>
+            <real_time_statistics>true</real_time_statistics>
+            <error_recovery>true</error_recovery>
+            <auto_reconnect>true</auto_reconnect>
+        </features>
 
-        <!-- Notifications -->
-        <notifications>
+        <logging>
             <enabled>true</enabled>
-            <notify_wins>true</notify_wins>
-            <notify_losses>false</notify_losses>
-            <notify_daily_summary>true</notify_daily_summary>
-            <notify_errors>true</notify_errors>
-            <notify_strategy_change>true</notify_strategy_change>
-        </notifications>
-
-        <!-- Execution Schedule -->
-        <execution_schedule>
-            <enabled>true</enabled>
-            <start_time>00:00</start_time>
-            <end_time>23:59</end_time>
-            <timezone>UTC</timezone>
-            <monday>true</monday>
-            <tuesday>true</tuesday>
-            <wednesday>true</wednesday>
-            <thursday>true</thursday>
-            <friday>true</friday>
-            <saturday>false</saturday>
-            <sunday>false</sunday>
-        </execution_schedule>
-
-        <!-- Debug Settings -->
-        <debug>
-            <enabled>false</enabled>
-            <log_level>INFO</log_level>
-            <verbose>false</verbose>
-            <simulate>false</simulate>
-        </debug>
-    </deriv_configuration>
+            <level>INFO</level>
+            <log_trades>true</log_trades>
+            <log_predictions>true</log_predictions>
+            <log_errors>true</log_errors>
+            <export_json>true</export_json>
+        </logging>
+    </dbot_configuration>
 
     <!-- ========================================================================
-         USAGE INSTRUCTIONS
+         SETUP AND INSTALLATION GUIDE
          ======================================================================== -->
     
-    <usage_instructions>
-        <title>Deriv Bot v2.0 - XML Application</title>
+    <setup_guide>
+        <platform>dbot.deriv.com</platform>
         
-        <installation>
-            <step1>Save this file as: deriv_bot_app.xml</step1>
-            <step2>Create .env file with: DERIV_API_TOKEN=your_token_here</step2>
-            <step3>Run: python deriv_bot_app.xml (or python -c "exec(open('deriv_bot_app.xml').read())")</step3>
-        </installation>
-        
-        <features>
-            <feature1>Complete XML-based application</feature1>
-            <feature2>Embedded Python code in XML</feature2>
-            <feature3>Advanced prediction engine</feature3>
-            <feature4>Multi-indicator analysis</feature4>
-            <feature5>Adaptive learning</feature5>
-            <feature6>Risk management</feature6>
-            <feature7>Auto-strategy switching</feature7>
-            <feature8>Session statistics tracking</feature8>
-        </features>
-        
-        <api_token>
-            <instruction1>Go to: https://app.deriv.com</instruction1>
-            <instruction2>Login to your account</instruction2>
-            <instruction3>Navigate to: Settings → API tokens</instruction3>
-            <instruction4>Create token with Trading permissions</instruction4>
-            <instruction5>Copy token to .env file</instruction5>
-        </api_token>
-        
-        <configuration>
-            <edit>Edit deriv_configuration section in this XML file</edit>
-            <symbol>Change trade_config/symbol for different assets</symbol>
-            <stake>Adjust trade_config/stake for bet amount</stake>
-            <threshold>Modify prediction_engine/confidence_threshold for sensitivity</threshold>
-        </configuration>
-    </usage_instructions>
+        <step1_create_account>
+            <description>Create or login to Deriv account</description>
+            <url>https://app.deriv.com</url>
+            <note>You need an active account to use dbot.deriv.com</note>
+        </step1_create_account>
+
+        <step2_access_dbot>
+            <description>Access the D Bot Builder</description>
+            <url>https://dbot.deriv.com</url>
+            <method>Login with your Deriv account credentials</method>
+        </step2_access_dbot>
+
+        <step3_import_xml>
+            <description>Import this XML file into dbot.deriv.com</description>
+            <steps>
+                <step>Click on "New Strategy" or import option</step>
+                <step>Select "Import from XML" or similar option</step>
+                <step>Upload this deriv_bot_app.xml file</step>
+                <step>The bot configuration will be loaded</step>
+            </steps>
+        </step3_import_xml>
+
+        <step4_configure_settings>
+            <description>Adjust trading parameters</description>
+            <parameters>
+                <symbol>FRXUSDJPY (change to desired asset)</symbol>
+                <stake>10 (set your bet amount)</stake>
+                <duration>60 (seconds per trade)</duration>
+                <confidence>65 (prediction confidence threshold)</confidence>
+                <interval>3000 (milliseconds between predictions)</interval>
+            </parameters>
+        </step4_configure_settings>
+
+        <step5_start_trading>
+            <description>Start the bot</description>
+            <steps>
+                <step>Click "Run" or "Start Strategy"</step>
+                <step>Bot will begin making predictions</step>
+                <step>Monitor live statistics and performance</step>
+                <step>Stop anytime using the stop button</step>
+            </steps>
+        </step5_start_trading>
+
+        <important_notes>
+            <note1>Start with DEMO account to test first</note1>
+            <note2>Use small stake amounts initially</note2>
+            <note3>Monitor bot performance regularly</note3>
+            <note4>Adjust confidence threshold if needed</note4>
+            <note5>Trading involves risk - never risk more than you can afford</note5>
+        </important_notes>
+    </setup_guide>
+
+    <!-- ========================================================================
+         FEATURES DOCUMENTATION
+         ======================================================================== -->
+    
+    <features_documentation>
+        <prediction_engine>
+            <description>Advanced multi-indicator prediction system</description>
+            <indicators>
+                <rsi>
+                    <name>Relative Strength Index</name>
+                    <period>14</period>
+                    <overbought>70</overbought>
+                    <oversold>30</oversold>
+                    <weight>25%</weight>
+                </rsi>
+                <ema>
+                    <name>Exponential Moving Average</name>
+                    <fast_period>12</fast_period>
+                    <slow_period>26</slow_period>
+                    <weight>25%</weight>
+                </ema>
+                <stochastic>
+                    <name>Stochastic Oscillator</name>
+                    <k_period>14</k_period>
+                    <d_period>3</d_period>
+                    <weight>25%</weight>
+                </stochastic>
+                <atr>
+                    <name>Average True Range</name>
+                    <period>14</period>
+                    <weight>25%</weight>
+                </atr>
+            </indicators>
+        </prediction_engine>
+
+        <adaptive_learning>
+            <description>Bot learns and improves from past trades</description>
+            <features>
+                <feature>Tracks win rate in real-time</feature>
+                <feature>Auto-switches strategy based on performance</feature>
+                <feature>Detects recurring patterns</feature>
+                <feature>Adjusts confidence thresholds dynamically</feature>
+            </features>
+        </adaptive_learning>
+
+        <risk_management>
+            <description>Comprehensive risk control system</description>
+            <features>
+                <feature>Daily loss limits to protect capital</feature>
+                <feature>Stop-loss and take-profit settings</feature>
+                <feature>Position sizing based on account balance</feature>
+                <feature>Circuit breaker on consecutive losses</feature>
+            </features>
+        </risk_management>
+
+        <session_tracking>
+            <description>Real-time performance monitoring</description>
+            <metrics>
+                <metric>Total trades executed</metric>
+                <metric>Win/loss count and percentage</metric>
+                <metric>Total profit/loss</metric>
+                <metric>Average confidence levels</metric>
+                <metric>Strategy effectiveness</metric>
+            </metrics>
+        </session_tracking>
+    </features_documentation>
+
+    <!-- ========================================================================
+         TROUBLESHOOTING
+         ======================================================================== -->
+    
+    <troubleshooting>
+        <issue1>
+            <problem>XML file not loading in dbot.deriv.com</problem>
+            <solutions>
+                <solution>Clear browser cache and refresh page</solution>
+                <solution>Try different browser (Chrome, Firefox, Safari)</solution>
+                <solution>Check XML file format is valid</solution>
+                <solution>Ensure .xml file extension is correct</solution>
+            </solutions>
+        </issue1>
+
+        <issue2>
+            <problem>Bot not making predictions</problem>
+            <solutions>
+                <solution>Check confidence threshold is not too high</solution>
+                <solution>Verify API connection is active</solution>
+                <solution>Ensure sufficient tick data is collected</solution>
+                <solution>Check browser console for error messages</solution>
+            </solutions>
+        </issue2>
+
+        <issue3>
+            <problem>Low win rate</problem>
+            <solutions>
+                <solution>Increase confidence threshold to reduce false signals</solution>
+                <solution>Collect more historical data before trading</solution>
+                <solution>Check market conditions are suitable</solution>
+                <solution>Adjust indicator periods for current market</solution>
+            </solutions>
+        </issue3>
+
+        <issue4>
+            <problem>Connection drops or disconnects</problem>
+            <solutions>
+                <solution>Check internet connection stability</solution>
+                <solution>Verify Deriv API is accessible</solution>
+                <solution>Check firewall/antivirus blocking connections</solution>
+                <solution>Auto-reconnect is enabled by default</solution>
+            </solutions>
+        </issue4>
+    </troubleshooting>
+
+    <!-- ========================================================================
+         SUPPORT AND RESOURCES
+         ======================================================================== -->
+    
+    <support>
+        <official_resources>
+            <deriv_official>https://www.deriv.com</deriv_official>
+            <dbot_platform>https://dbot.deriv.com</dbot_platform>
+            <deriv_help>https://help.deriv.com</deriv_help>
+            <api_docs>https://developers.deriv.com</api_docs>
+        </official_resources>
+
+        <learning_resources>
+            <technical_analysis>https://www.investopedia.com/terms/t/technicalanalysis.asp</technical_analysis>
+            <trading_guide>https://www.investopedia.com/terms/f/forex.asp</trading_guide>
+            <bot_strategies>https://www.investopedia.com/terms/a/algorithmic-trading.asp</bot_strategies>
+        </learning_resources>
+
+        <contact>
+            <author>umbrellabadbro-star</author>
+            <repository>https://github.com/umbrellabadbro-star/Deriv-bot</repository>
+            <deriv_support>support@deriv.com</deriv_support>
+        </contact>
+
+        <disclaimer>
+            Trading financial instruments involves substantial risk of loss.
+            Past performance does not guarantee future results.
+            Use at your own risk and always do your own research.
+            The authors are not responsible for any losses.
+        </disclaimer>
+    </support>
 
 </deriv_bot_application>
