@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<deriv_bot>
+    <!-- Deriv Bot Advanced Prediction Configuration -->
+    <!-- Version 1.0 - Complete Working Setup -->
+    
+    <!-- API Configuration -->
+    <api_config>
+        <endpoint>wss://ws.binaryws.com/websockets/v3</endpoint>
+        <app_id>YOUR_APP_ID_HERE</app_id>
+        <api_token>YOUR_API_TOKEN_HERE</api_token>
+        <connection_timeout>30000</connection_timeout>
+        <reconnect_attempts>5</reconnect_attempts>
+        <reconnect_delay>2000</reconnect_delay>
+    </api_config>
+
+    <!-- Account Configuration -->
+    <account_config>
+        <account_type>real</account_type>
+        <currency>USD</currency>
+        <server>default</server>
+    </account_config>
+
+    <!-- Trade Configuration -->
+    <trade_config>
+        <symbol>FRXUSDJPY</symbol>
+        <trade_type>digits_match</trade_type>
+        <stake>10</stake>
+        <duration>1m</duration>
+        <duration_value>60</duration_value>
+        <max_concurrent_trades>1</max_concurrent_trades>
+        <daily_profit_target>100</daily_profit_target>
+        <daily_loss_limit>500</daily_loss_limit>
+    </trade_config>
+
+    <!-- Prediction Engine Configuration -->
+    <prediction_engine>
+        <strategy>advanced_adaptive</strategy>
+        <prediction_mode>auto_switch</prediction_mode>
+        <prediction_interval>5000</prediction_interval>
+        
+        <!-- Technical Indicators -->
+        <indicators>
+            <rsi>
+                <enabled>true</enabled>
+                <period>14</period>
+                <overbought>70</overbought>
+                <oversold>30</oversold>
+            </rsi>
+            <moving_average>
+                <enabled>true</enabled>
+                <type>exponential</type>
+                <period>20</period>
+            </moving_average>
+            <bollinger_bands>
+                <enabled>true</enabled>
+                <period>20</period>
+                <std_dev>2</std_dev>
+            </bollinger_bands>
+            <macd>
+                <enabled>true</enabled>
+                <fast_period>12</fast_period>
+                <slow_period>26</slow_period>
+                <signal_period>9</signal_period>
+            </macd>
+        </indicators>
+
+        <!-- Adaptive Learning Settings -->
+        <adaptive_learning>
+            <enabled>true</enabled>
+            <learning_rate>0.01</learning_rate>
+            <memory_size>500</memory_size>
+            <pattern_detection>true</pattern_detection>
+            <win_rate_threshold>55</win_rate_threshold>
+        </adaptive_learning>
+
+        <!-- Random Tick Generation for Testing -->
+        <random_tick_generation>
+            <enabled>false</enabled>
+            <min_value>0</min_value>
+            <max_value>9</max_value>
+            <tick_interval>1000</tick_interval>
+        </random_tick_generation>
+
+        <!-- Digits Prediction Logic -->
+        <digits_logic>
+            <sample_size>20</sample_size>
+            <match_prediction_weight>0.4</match_prediction_weight>
+            <differ_prediction_weight>0.6</differ_prediction_weight>
+            <confidence_threshold>60</confidence_threshold>
+            <auto_switch_threshold>50</auto_switch_threshold>
+        </digits_logic>
+    </prediction_engine>
+
+    <!-- Risk Management -->
+    <risk_management>
+        <enabled>true</enabled>
+        <max_risk_per_trade>2</max_risk_per_trade>
+        <martingale>
+            <enabled>false</enabled>
+            <multiplier>2</multiplier>
+            <max_steps>5</max_steps>
+        </martingale>
+        <stop_loss>
+            <enabled>true</enabled>
+            <loss_percentage>10</loss_percentage>
+        </stop_loss>
+        <take_profit>
+            <enabled>true</enabled>
+            <profit_percentage>20</profit_percentage>
+        </take_profit>
+    </risk_management>
+
+    <!-- Performance Tracking -->
+    <performance_tracking>
+        <enabled>true</enabled>
+        <log_file>bot_trades.log</log_file>
+        <session_file>bot_session.json</session_file>
+        <metrics>
+            <track_win_rate>true</track_win_rate>
+            <track_roi>true</track_roi>
+            <track_accuracy>true</track_accuracy>
+            <track_prediction_confidence>true</track_prediction_confidence>
+        </metrics>
+    </performance_tracking>
+
+    <!-- Notification Settings -->
+    <notifications>
+        <enabled>true</enabled>
+        <email>YOUR_EMAIL@gmail.com</email>
+        <webhook_url></webhook_url>
+        <notify_on>
+            <winning_trade>true</winning_trade>
+            <losing_trade>true</losing_trade>
+            <daily_summary>true</daily_summary>
+            <error>true</error>
+        </notify_on>
+    </notifications>
+
+    <!-- Execution Schedule -->
+    <execution_schedule>
+        <enabled>true</enabled>
+        <start_time>00:00</start_time>
+        <end_time>23:59</end_time>
+        <timezone>UTC</timezone>
+        <trading_days>
+            <monday>true</monday>
+            <tuesday>true</tuesday>
+            <wednesday>true</wednesday>
+            <thursday>true</thursday>
+            <friday>true</friday>
+            <saturday>false</saturday>
+            <sunday>false</sunday>
+        </trading_days>
+    </execution_schedule>
+
+    <!-- Debug Mode -->
+    <debug>
+        <enabled>false</enabled>
+        <log_level>INFO</log_level>
+        <verbose_predictions>false</verbose_predictions>
+        <simulate_trades>false</simulate_trades>
+    </debug>
+</deriv_bot>
